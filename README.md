@@ -98,14 +98,44 @@ Ambas aplicaciones (inquilino y casero) comparten la misma base de datos Supabas
 
 1. Sube todos los archivos a tu repositorio o servidor web
 2. Asegúrate de que la carpeta `js/` esté en la raíz junto con `index.html`
-3. La base de datos ya está configurada y lista para usar
-4. Accede a `index.html` (o simplemente abre la URL raíz del sitio)
+3. **IMPORTANTE**: Lee `CONFIGURACION-SUPABASE.md` y configura las URLs de redirección en Supabase
+4. La base de datos ya está configurada y lista para usar
+5. Accede a `index.html` (o simplemente abre la URL raíz del sitio)
 
 ## Autenticación
 
 - Login con Google (mismo sistema que la app de inquilinos)
 - Sesión persistente
 - Logout desde el menú lateral
+- **Compatible con móvil** (requiere configurar URLs en Supabase)
+
+## Progressive Web App (PWA)
+
+Esta aplicación es una PWA completamente funcional:
+
+### Características PWA:
+- ✅ **Instalable** en Android e iOS
+- ✅ **Funciona offline** con service worker
+- ✅ **Modo standalone** (pantalla completa sin barra del navegador)
+- ✅ **Iconos adaptativos** para Android
+- ✅ **Optimizada para iOS** con meta tags específicos
+
+### Cómo Instalar:
+
+**Android (Chrome/Edge):**
+1. Abre la app en el navegador
+2. Menú (⋮) → "Añadir a pantalla de inicio" o "Instalar app"
+3. Acepta la instalación
+
+**iOS (Safari):**
+1. Abre la app en Safari
+2. Botón Compartir → "Añadir a pantalla de inicio"
+3. Confirma la instalación
+
+### Requisitos para PWA:
+- La app debe servirse mediante **HTTPS** (no HTTP)
+- Las URLs de redirección deben estar configuradas en Supabase
+- El navegador debe soportar service workers (todos los modernos lo hacen)
 
 ## Notas Técnicas
 
@@ -114,7 +144,9 @@ Ambas aplicaciones (inquilino y casero) comparten la misma base de datos Supabas
 - Supabase para backend y autenticación
 - RLS para seguridad a nivel de base de datos
 - Responsive design (móvil y desktop)
-- PWA (Progressive Web App)
+- PWA (Progressive Web App) con service worker
+- Instalable en Android e iOS
+- Compatible con modo offline
 
 ## Flujo de Trabajo Típico
 

@@ -1,36 +1,59 @@
 async function initAuth() {
-    const { data: { session } } = await _supabase.auth.getSession();
+    try {
+        const { data: { session }, error } = await _supabase.auth.getSession();
 
-    if (session) {
-        currentUser = session.user;
-        showApp();
-    } else {
-        showLogin();
-    }
+        if (error) {
+            console.error('Session error:', error);
+            showLogin();
+            return;
+        }
 
-    _supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN') {
+        if (session) {
             currentUser = session.user;
             showApp();
-        } else if (event === 'SIGNED_OUT') {
-            currentUser = null;
+        } else {
             showLogin();
         }
-    });
 
-    authInitialized = true;
+        _supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state changed:', event);
+
+            if (event === 'SIGNED_IN' && session) {
+                currentUser = session.user;
+                showApp();
+            } else if (event === 'SIGNED_OUT') {
+                currentUser = null;
+                showLogin();
+            } else if (event === 'TOKEN_REFRESHED' && session) {
+                currentUser = session.user;
+            }
+        });
+
+        authInitialized = true;
+    } catch (err) {
+        console.error('Init auth error:', err);
+        showLogin();
+    }
 }
 
 async function loginWithGoogle() {
+    const currentUrl = window.location.href.split('?')[0].split('#')[0];
+
     const { error } = await _supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin + window.location.pathname
+            redirectTo: currentUrl,
+            skipBrowserRedirect: false,
+            queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+            }
         }
     });
 
     if (error) {
-        showToast('Error al iniciar sesión');
+        console.error('Auth error:', error);
+        showToast('Error al iniciar sesión: ' + error.message);
     }
 }
 

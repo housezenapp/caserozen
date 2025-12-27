@@ -4,21 +4,23 @@ ARCHIVOS DE LA APLICACIÓN DEL CASERO
 Sube estos archivos a tu nuevo repositorio de GitHub:
 
 ARCHIVOS PRINCIPALES:
-- index.html (HTML principal)
+- index.html (HTML principal - ACTUALIZADO con meta tags iOS)
 - styles.css (Estilos con tema teal)
-- manifest.json (Configuración PWA)
+- manifest.json (Configuración PWA - ACTUALIZADO)
+- service-worker.js (NUEVO - necesario para PWA)
 - README.md (Documentación)
+- CONFIGURACION-SUPABASE.md (IMPORTANTE - Lee esto primero)
 
 CARPETA js/ (crear esta carpeta y subir todos estos archivos dentro):
 - js/config.js
-- js/auth.js
+- js/auth.js (ACTUALIZADO - mejor manejo en móvil)
 - js/ui.js
 - js/dashboard.js
 - js/incidents.js
 - js/properties.js
 - js/tecnicos.js
 - js/profile.js
-- js/app.js
+- js/app.js (ACTUALIZADO - registra service worker)
 
 IMPORTANTE:
 - La base de datos ya está configurada y compartida con la app de inquilinos
@@ -28,11 +30,13 @@ IMPORTANTE:
 
 PARA PROBAR LA APP:
 1. Sube todos los archivos al nuevo repositorio
-2. Abre index.html en tu navegador o despliega en tu servidor
-3. Inicia sesión con Google
-4. Empieza añadiendo propiedades en "Mis Propiedades"
-5. Vincula los emails de tus inquilinos
-6. Verás las incidencias que ellos reporten desde su app
+2. Lee CONFIGURACION-SUPABASE.md y configura las URLs de redirección
+3. Abre la app desde tu servidor (debe ser HTTPS)
+4. Inicia sesión con Google
+5. Empieza añadiendo propiedades en "Mis Propiedades"
+6. Vincula los emails de tus inquilinos
+7. Verás las incidencias que ellos reporten desde su app
+8. Instala la app como PWA desde el menú del navegador (Android/iOS)
 
 URL DE LA BASE DE DATOS:
 https://rplieisbxvruijvnxbya.supabase.co
