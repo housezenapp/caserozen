@@ -1,23 +1,26 @@
 async function initAuth() {
     try {
+        console.log('🔄 Iniciando autenticación...');
         const { data: { session }, error } = await _supabase.auth.getSession();
 
         if (error) {
-            console.error('Session error:', error);
+            console.error('❌ Session error:', error);
             showLogin();
             return;
         }
 
         if (session) {
+            console.log('✅ Sesión encontrada:', session.user.email);
             currentUser = session.user;
             await ensureCaseroProfile();
             showApp();
         } else {
+            console.log('ℹ️ No hay sesión activa');
             showLogin();
         }
 
         _supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('Auth state changed:', event);
+            console.log('🔔 Auth state changed:', event, session?.user?.email);
 
             if (event === 'SIGNED_IN' && session) {
                 currentUser = session.user;
@@ -33,7 +36,7 @@ async function initAuth() {
 
         authInitialized = true;
     } catch (err) {
-        console.error('Init auth error:', err);
+        console.error('❌ Init auth error:', err);
         showLogin();
     }
 }
@@ -70,23 +73,29 @@ async function registerWithEmail(email, password) {
 }
 
 async function loginWithGoogle() {
-    const currentUrl = window.location.href;
-    const baseUrl = currentUrl.split('?')[0];
+    try {
+        showToast('Redirigiendo a Google...');
 
-    const { error } = await _supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-            redirectTo: baseUrl
+        const { data, error } = await _supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: 'https://caserav.github.io/caserozen/'
+            }
+        });
+
+        if (error) {
+            console.error('❌ Google login error:', error);
+            showToast('Error: ' + error.message);
+            return false;
         }
-    });
 
-    if (error) {
-        console.error('Login error:', error);
-        showToast('Error: ' + error.message);
+        console.log('✅ Redirigiendo a Google OAuth...');
+        return true;
+    } catch (err) {
+        console.error('❌ Error inesperado:', err);
+        showToast('Error al conectar con Google');
         return false;
     }
-
-    return true;
 }
 
 async function ensureCaseroProfile() {
