@@ -38,10 +38,12 @@ async function initAuth() {
     }
 }
 
-async function login(email, password) {
-    const { data, error } = await _supabase.auth.signInWithPassword({
-        email: email,
-        password: password
+async function loginWithGoogle() {
+    const { error } = await _supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin
+        }
     });
 
     if (error) {
@@ -50,28 +52,6 @@ async function login(email, password) {
         return false;
     }
 
-    showToast('¡Bienvenido!');
-    return true;
-}
-
-async function register(email, password, fullName) {
-    const { data, error } = await _supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-            data: {
-                full_name: fullName
-            }
-        }
-    });
-
-    if (error) {
-        console.error('Register error:', error);
-        showToast('Error: ' + error.message);
-        return false;
-    }
-
-    showToast('¡Cuenta creada! Iniciando sesión...');
     return true;
 }
 
