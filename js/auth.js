@@ -26,8 +26,7 @@ async function ensureCaseroProfile(user) {
         const { error } = await window._supabase.from('caseros').upsert({
             id: user.id,
             email: user.email,
-            nombre_completo: user.user_metadata?.full_name || '',
-            ultima_conexion: new Date().toISOString()
+            nombre_completo: user.user_metadata?.full_name || ''
         });
         if (error) throw error;
         console.log("✅ Perfil de casero sincronizado");
@@ -78,10 +77,9 @@ export async function initAuth() {
         }
     };
 
-    // 1. INTENTO DE RECUPERACIÓN MANUAL (Para cuando se queda "enquistado")
     console.log("Buscando sesión existente...");
     const { data: { session }, error } = await window._supabase.auth.getSession();
-    
+
     if (error) {
         console.error("Error al recuperar sesión:", error);
         showLogin();
@@ -91,16 +89,17 @@ export async function initAuth() {
     if (session) {
         await handleEntry(session);
     } else {
-        // 2. ESCUCHA DE EVENTOS (Por si el getSession falló pero el evento llega)
-        window._supabase.auth.onAuthStateChange(async (event, newSession) => {
-            console.log("Evento detectado:", event);
-            if (newSession && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-                await handleEntry(newSession);
-            } else if (event === 'SIGNED_OUT') {
-                showLogin();
-            }
-        });
+        showLogin();
     }
+
+    window._supabase.auth.onAuthStateChange(async (event, newSession) => {
+        console.log("Evento detectado:", event);
+        if (newSession && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+            await handleEntry(newSession);
+        } else if (event === 'SIGNED_OUT') {
+            showLogin();
+        }
+    });
 }
 
 window.logout = async () => {
