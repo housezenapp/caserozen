@@ -1,6 +1,7 @@
-// 1. Lanzar Google Login
+// 1. Función de Login
 async function loginWithGoogle() {
     try {
+        console.log("Iniciando flujo de Google...");
         const { error } = await window._supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -13,54 +14,71 @@ async function loginWithGoogle() {
     }
 }
 
-// 2. El "Portero" mejorado
+// 2. Portero y Detector de Sesión
 export async function initAuth() {
-    console.log("Detectando sesión...");
-    
+    console.log("Verificando sesión...");
+
     const btn = document.getElementById('btnGoogleLogin');
     if (btn) btn.onclick = loginWithGoogle;
 
-    // ESCUCHA ACTIVA: Para cambios de estado futuros
-    window._supabase.auth.onAuthStateChange((event, session) => {
-        console.log("Cambio de Auth Detectado:", event);
+    // Función interna para procesar la entrada
+    const handleAuth = async (session) => {
         if (session) {
+            console.log("✅ Acceso concedido:", session.user.email);
             window.currentUser = session.user;
+            
+            // LIMPIEZA DE URL: Borra el access_token de la barra de direcciones
+            if (window.location.hash.includes('access_token')) {
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+
             showApp();
-            ensureCaseroProfile();
+            await ensureCaseroProfile();
+            
+            // Carga de propiedades
+            try {
+                const { loadProperties } = await import('./properties.js');
+                loadProperties();
+            } catch (e) {
+                console.error("Error cargando propiedades:", e);
+            }
         } else {
+            console.log("❌ Sin sesión activa");
+            showLogin();
+        }
+    };
+
+    // Paso 1: Comprobar si ya hay sesión (o si acabamos de volver de Google)
+    const { data, error } = await window._supabase.auth.getSession();
+    if (error) console.error("Error recuperando sesión:", error);
+    await handleAuth(data.session);
+
+    // Paso 2: Escuchar cambios de estado
+    window._supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log("Evento de Autenticación:", event);
+        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+            await handleAuth(session);
+        } else if (event === 'SIGNED_OUT') {
             showLogin();
         }
     });
-
-    // EMPUJÓN MANUAL: Comprobamos la sesión inmediatamente
-    const { data, error } = await window._supabase.auth.getSession();
-    
-    if (data?.session) {
-        console.log("Sesión recuperada manualmente");
-        window.currentUser = data.session.user;
-        showApp();
-        ensureCaseroProfile();
-    } else {
-        console.log("No hay sesión activa, mostrando login");
-        showLogin();
-    }
 }
 
-// 3. Crear ficha de casero
+// 3. Registro en Base de Datos
 async function ensureCaseroProfile() {
     if (!window.currentUser) return;
-    try {
-        await window._supabase.from('caseros').upsert({
-            id: window.currentUser.id,
-            email: window.currentUser.email,
-            nombre_completo: window.currentUser.user_metadata?.full_name || ''
-        });
-    } catch (e) {
-        console.error("Error en perfil casero:", e);
-    }
+    const { id, email, user_metadata } = window.currentUser;
+    
+    const { error } = await window._supabase.from('caseros').upsert({
+        id: id,
+        email: email,
+        nombre_completo: user_metadata?.full_name || ''
+    });
+    
+    if (error) console.error("Error actualizando perfil casero:", error);
 }
 
-// 4. Control de pantalla (Asegurando que los IDs existan)
+// 4. Control Visual de Pantallas
 function showLogin() {
     const loginPage = document.getElementById('login-page');
     const appContent = document.getElementById('app-content');
@@ -75,19 +93,12 @@ function showApp() {
     if (loginPage) loginPage.style.display = 'none';
     if (appContent) appContent.style.display = 'block';
     
-    // Limpiar la URL del enlace largo (token) para que quede limpia
-    if (window.location.hash) {
-        window.history.replaceState(null, null, window.location.pathname);
-    }
-    
     const name = window.currentUser?.user_metadata?.full_name || window.currentUser?.email;
     const display = document.getElementById('sidebar-username');
     if (display) display.textContent = name;
-
-    // Cargar propiedades
-    import('./properties.js').then(m => m.loadProperties());
 }
 
+// Logout Global
 window.logout = async () => {
     await window._supabase.auth.signOut();
     window.location.href = window.location.origin + window.location.pathname;
