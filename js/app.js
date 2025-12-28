@@ -1,3 +1,4 @@
+// js/app.js
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { initAuth } from './auth.js';
 
@@ -8,42 +9,50 @@ window._supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 document.addEventListener('DOMContentLoaded', () => {
     initAuth();
-    initUI(); // <-- Nueva función para el menú
+    initMenu();
 });
 
-function initUI() {
-    console.log("🛠️ Inicializando eventos del menú...");
+function initMenu() {
+    const menuBtn = document.getElementById('menuBtn');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('menuOverlay');
+    const navItems = document.querySelectorAll('.nav-item');
+    const pages = document.querySelectorAll('.page');
 
-    // 1. Botón para abrir/cerrar menú (Mobile)
-    const menuBtn = document.getElementById('menu-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    
-    if (menuBtn && sidebar) {
-        menuBtn.onclick = () => {
-            sidebar.classList.toggle('active');
-        };
+    // Abrir/Cerrar Menú
+    function toggleMenu() {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
     }
 
-    // 2. Navegación entre secciones (Propiedades, Reportes, etc.)
-    const navLinks = document.querySelectorAll('.nav-link');
-    const sections = document.querySelectorAll('.content-section');
+    if (menuBtn) menuBtn.onclick = toggleMenu;
+    if (overlay) overlay.onclick = toggleMenu;
 
-    navLinks.forEach(link => {
-        link.onclick = (e) => {
-            e.preventDefault();
-            const targetSection = link.getAttribute('data-section');
+    // Navegación entre páginas
+    navItems.forEach(item => {
+        item.onclick = () => {
+            const pageId = item.getAttribute('data-page');
+            if (!pageId) return; // Por si es el de logout
 
-            // Quitar 'active' de todos los enlaces y secciones
-            navLinks.forEach(l => l.classList.remove('active'));
-            sections.forEach(s => s.classList.remove('active'));
+            // Cambiar clase active en botones
+            navItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
 
-            // Activar el seleccionado
-            link.classList.add('active');
-            const activeSection = document.getElementById(targetSection);
-            if (activeSection) activeSection.classList.add('active');
+            // Cambiar de página visible
+            pages.forEach(p => p.classList.remove('active'));
+            const targetPage = document.getElementById(`page-${pageId}`);
+            if (targetPage) targetPage.classList.add('active');
 
-            // Cerrar menú en móvil tras hacer clic
-            if (sidebar) sidebar.classList.remove('active');
+            // Cerrar menú en móviles
+            if (window.innerWidth <= 768) toggleMenu();
         };
     });
+
+    // Vincular Logout
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) {
+        btnLogout.onclick = () => {
+            if (window.logout) window.logout();
+        };
+    }
 }
