@@ -10,46 +10,32 @@ async function loadDashboard() {
 
             incidents = data || [];
         } else {
-            const { data: properties } = await _supabase
-                .from('propiedades')
-                .select('inquilino_email')
-                .eq('casero_id', currentUser.id);
+            const { data } = await _supabase
+                .from('incidencias')
+                .select(`
+                    *,
+                    propiedades!inner (
+                        id,
+                        casero_id
+                    )
+                `)
+                .eq('propiedades.casero_id', currentUser.id)
+                .order('created_at', { ascending: false });
 
-            if (!properties || properties.length === 0) {
+            if (!data || data.length === 0) {
                 document.getElementById('stat-urgent').textContent = '0';
                 document.getElementById('stat-pending').textContent = '0';
                 document.getElementById('stat-progress').textContent = '0';
                 document.getElementById('dashboard-recent-incidents').innerHTML = `
                     <div class="empty-state">
                         <i class="fa-solid fa-home"></i>
-                        <div class="empty-state-text">Primero añade tus propiedades en "Mis Propiedades"</div>
+                        <div class="empty-state-text">No hay incidencias vinculadas a tus propiedades</div>
                     </div>
                 `;
                 return;
             }
 
-            const inquilinoEmails = properties.map(p => p.inquilino_email).filter(e => e);
-
-            if (inquilinoEmails.length === 0) {
-                document.getElementById('stat-urgent').textContent = '0';
-                document.getElementById('stat-pending').textContent = '0';
-                document.getElementById('stat-progress').textContent = '0';
-                document.getElementById('dashboard-recent-incidents').innerHTML = `
-                    <div class="empty-state">
-                        <i class="fa-solid fa-users"></i>
-                        <div class="empty-state-text">Vincula inquilinos a tus propiedades</div>
-                    </div>
-                `;
-                return;
-            }
-
-            const { data } = await _supabase
-                .from('incidencias')
-                .select('*')
-                .in('email_inquilino', inquilinoEmails)
-                .order('created_at', { ascending: false });
-
-            incidents = data || [];
+            incidents = data;
         }
 
         if (!incidents) return;

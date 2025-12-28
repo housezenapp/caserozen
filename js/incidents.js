@@ -8,56 +8,53 @@ async function loadIncidentsLogistics() {
     `;
 
     try {
-        let query = _supabase
-            .from('incidencias')
-            .select('*')
-            .order('created_at', { ascending: false });
+        let incidents = [];
 
-        if (!isAdmin) {
-            const { data: properties } = await _supabase
-                .from('propiedades')
-                .select('inquilino_email')
-                .eq('casero_id', currentUser.id);
+        if (isAdmin) {
+            const { data } = await _supabase
+                .from('incidencias')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-            if (!properties || properties.length === 0) {
+            incidents = data || [];
+        } else {
+            const { data } = await _supabase
+                .from('incidencias')
+                .select(`
+                    *,
+                    propiedades!inner (
+                        id,
+                        casero_id
+                    )
+                `)
+                .eq('propiedades.casero_id', currentUser.id)
+                .order('created_at', { ascending: false });
+
+            if (!data || data.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="fa-solid fa-home"></i>
-                        <div class="empty-state-text">Primero añade tus propiedades</div>
+                        <div class="empty-state-text">No hay incidencias vinculadas a tus propiedades</div>
                     </div>
                 `;
                 return;
             }
 
-            const inquilinoEmails = properties.map(p => p.inquilino_email).filter(e => e);
-
-            if (inquilinoEmails.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fa-solid fa-users"></i>
-                        <div class="empty-state-text">Vincula inquilinos a tus propiedades</div>
-                    </div>
-                `;
-                return;
-            }
-
-            query = query.in('email_inquilino', inquilinoEmails);
+            incidents = data;
         }
 
         const filterEstado = document.getElementById('filter-estado').value;
         const filterUrgencia = document.getElementById('filter-urgencia').value;
 
         if (filterEstado) {
-            query = query.eq('estado', filterEstado);
+            incidents = incidents.filter(i => i.estado === filterEstado);
         }
 
         if (filterUrgencia) {
-            query = query.eq('urgencia', filterUrgencia);
+            incidents = incidents.filter(i => i.urgencia === filterUrgencia);
         }
 
-        const { data: incidents } = await query;
-
-        if (!incidents || incidents.length === 0) {
+        if (incidents.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-filter"></i>
