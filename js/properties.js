@@ -203,6 +203,16 @@ async function handlePropertySubmit(e) {
 
     console.log('Usuario actual:', currentUser);
 
+    const { data: { session } } = await _supabase.auth.getSession();
+    console.log('Sesión actual:', session);
+    console.log('Token JWT:', session?.access_token);
+    console.log('Usuario de sesión:', session?.user?.id);
+    console.log('Comparación IDs:', {
+        currentUser: currentUser?.id,
+        sessionUser: session?.user?.id,
+        sonIguales: currentUser?.id === session?.user?.id
+    });
+
     const propertyData = {
         casero_id: currentUser.id,
         direccion_completa: document.getElementById('property-address').value,
