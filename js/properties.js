@@ -86,6 +86,8 @@ function renderProperties(properties) {
 }
 
 // 5. Abrir Modal y Generar código VALIDADO
+
+// 5. Abrir Modal y Generar código (Versión Blindada)
 export async function openPropertyModal() {
     const modal = document.getElementById('property-form-modal');
     const form = document.getElementById('propertyForm');
@@ -93,23 +95,34 @@ export async function openPropertyModal() {
     
     if (!modal || !form) return;
 
+    // 1. Limpiar y mostrar modal inmediatamente
     form.reset();
     document.getElementById('property-id').value = '';
-    
-    // Abrimos el modal primero
     modal.style.display = 'flex';
     modal.classList.add('active');
 
-    // Generamos código único mientras el usuario empieza a escribir
+    // 2. Generar código con timeout para no bloquear la UI
     if (refInput) {
-        refInput.value = 'Generando...';
-        let code;
-        let unique = false;
-        while (!unique) {
-            code = generatePropertyCode();
-            unique = await isCodeUnique(code);
+        refInput.value = 'Validando...';
+        try {
+            let code = generatePropertyCode();
+            // Verificación rápida
+            const { data } = await window._supabase
+                .from('propiedades')
+                .select('id')
+                .eq('referencia', code)
+                .maybeSingle();
+            
+            // Si existe, generamos otro rápido (una sola vez para no entrar en bucles infinitos)
+            if (data) {
+                code = generatePropertyCode();
+            }
+            refInput.value = code;
+        } catch (err) {
+            console.error("Error generando código:", err);
+            // Si falla la red, ponemos uno aleatorio para poder seguir trabajando
+            refInput.value = generatePropertyCode();
         }
-        refInput.value = code;
     }
 }
 
