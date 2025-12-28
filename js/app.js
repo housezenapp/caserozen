@@ -1,11 +1,12 @@
 import { CONFIG } from './config.js';
 import { initAuth } from './auth.js';
+import { setupEventListeners } from './ui.js';
 
 // 1. CONEXIÓN GLOBAL: Creamos la conexión para que todos los archivos la usen
 // Usamos window._supabase para que sea accesible desde cualquier parte del código
 window._supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
-// 2. SERVICE WORKER: Mantenemos la capacidad de instalar la app en el móvil
+// 2. SERVICE WORKER: Capacidad PWA (Instalar en móvil)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js')
@@ -14,22 +15,22 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// 3. INICIO DE LA APP
+// 3. INICIO DE LA APP: El orden de encendido es vital
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 App CaseroZen iniciando...');
     
     try {
-        // Arrancamos el portero (Auth)
-        // Esto activará el botón de Google y revisará si ya estabas logueado
+        // Primero: Activamos todos los botones y el menú lateral (UI)
+        // Esto hace que las "tres barritas" empiecen a escuchar clics
+        setupEventListeners();
+        console.log('✅ Interfaz (UI) lista');
+
+        // Segundo: Arrancamos el control de acceso (Auth)
+        // Esto verifica si el usuario está logueado o muestra el login
         await initAuth();
         console.log('✅ Sistema de Autenticación cargado');
 
-        // Configuramos los botones de la interfaz (menús, navegación, etc.)
-        if (typeof setupEventListeners === 'function') {
-            setupEventListeners();
-            console.log('✅ Eventos de UI configurados');
-        }
     } catch (error) {
-        console.error('❌ Error crítico en el inicio de la App:', error);
+        console.error('❌ Error crítico en el arranque:', error);
     }
 });
