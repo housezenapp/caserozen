@@ -1,5 +1,7 @@
-function showToast(message) {
+// Añadimos export para que app.js pueda activar los botones
+export function showToast(message) {
     const toast = document.getElementById('toast');
+    if (!toast) return;
     toast.textContent = message;
     toast.classList.add('show');
     setTimeout(() => {
@@ -7,14 +9,16 @@ function showToast(message) {
     }, 3000);
 }
 
-function toggleSidebar() {
+export function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('menuOverlay');
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    }
 }
 
-function showPage(pageName) {
+export function showPage(pageName) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -28,18 +32,23 @@ function showPage(pageName) {
         navItem.classList.add('active');
     }
 
-    toggleSidebar();
+    // Cerramos el menú tras elegir página
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && sidebar.classList.contains('active')) {
+        toggleSidebar();
+    }
 
+    // Llamadas a las funciones de carga de cada sección
     if (pageName === 'incidencias') {
-        loadIncidents();
+        if (typeof loadIncidents === 'function') loadIncidents();
     } else if (pageName === 'propiedades') {
-        loadProperties();
+        if (typeof loadProperties === 'function') loadProperties();
     } else if (pageName === 'perfil') {
-        loadProfile();
+        if (typeof loadProfile === 'function') loadProfile();
     }
 }
 
-function formatDate(dateString) {
+export function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
         day: 'numeric',
@@ -50,7 +59,7 @@ function formatDate(dateString) {
     });
 }
 
-function formatDateShort(dateString) {
+export function formatDateShort(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
@@ -60,7 +69,9 @@ function formatDateShort(dateString) {
     });
 }
 
-function setupEventListeners() {
+// Esta es la función principal que ejecutará app.js
+export function setupEventListeners() {
+    // Tabs de Login/Registro
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             const targetTab = this.dataset.tab;
@@ -77,40 +88,60 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        await loginWithEmail(email, password);
-    });
+    // Formularios de Email (aunque ahora uses Google, los mantenemos)
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            if (typeof loginWithEmail === 'function') await loginWithEmail(email, password);
+        });
+    }
 
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
-        const confirmPassword = document.getElementById('register-password-confirm').value;
+    const registerForm = document.getElementById('registerForm');
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const confirmPassword = document.getElementById('register-password-confirm').value;
 
-        if (password !== confirmPassword) {
-            showToast('Las contraseñas no coinciden');
-            return;
-        }
+            if (password !== confirmPassword) {
+                showToast('Las contraseñas no coinciden');
+                return;
+            }
+            if (password.length < 6) {
+                showToast('La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+            if (typeof registerWithEmail === 'function') await registerWithEmail(email, password);
+        });
+    }
 
-        if (password.length < 6) {
-            showToast('La contraseña debe tener al menos 6 caracteres');
-            return;
-        }
+    // BOTÓN GOOGLE (Importante: ya vinculado en auth.js, pero mantenemos el listener por si acaso)
+    const btnGoogle = document.getElementById('btnGoogleLogin');
+    if (btnGoogle) {
+        btnGoogle.addEventListener('click', async () => {
+            if (window.loginWithGoogle) await window.loginWithGoogle();
+        });
+    }
 
-        await registerWithEmail(email, password);
-    });
+    // MENÚ LATERAL Y LOGOUT
+    const menuBtn = document.getElementById('menuBtn');
+    if (menuBtn) menuBtn.addEventListener('click', toggleSidebar);
 
-    document.getElementById('btnGoogleLogin').addEventListener('click', async () => {
-        await loginWithGoogle();
-    });
+    const overlay = document.getElementById('menuOverlay');
+    if (overlay) overlay.addEventListener('click', toggleSidebar);
 
-    document.getElementById('menuBtn').addEventListener('click', toggleSidebar);
-    document.getElementById('menuOverlay').addEventListener('click', toggleSidebar);
-    document.getElementById('btnLogout').addEventListener('click', logout);
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', () => {
+            if (window.logout) window.logout();
+        });
+    }
 
+    // NAVEGACIÓN
     document.querySelectorAll('.nav-item[data-page]').forEach(item => {
         item.addEventListener('click', function() {
             const page = this.dataset.page;
@@ -118,22 +149,50 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById('btnAddProperty').addEventListener('click', () => {
-        openPropertyModal();
+    // PROPIEDADES Y PERFIL
+    const btnAddProp = document.getElementById('btnAddProperty');
+    if (btnAddProp) {
+        btnAddProp.addEventListener('click', () => {
+            if (typeof openPropertyModal === 'function') openPropertyModal();
+        });
+    }
+
+    const closePropModal = document.getElementById('closePropertyModal');
+    if (closePropModal) {
+        closePropModal.addEventListener('click', () => {
+            if (typeof closePropertyModal === 'function') closePropertyModal();
+        });
+    }
+
+    const propForm = document.getElementById('propertyForm');
+    if (propForm) {
+        propForm.addEventListener('submit', (e) => {
+            if (typeof handlePropertySubmit === 'function') handlePropertySubmit(e);
+        });
+    }
+
+    const perfilForm = document.getElementById('perfilForm');
+    if (perfilForm) {
+        perfilForm.addEventListener('submit', (e) => {
+            if (typeof handleProfileSubmit === 'function') handleProfileSubmit(e);
+        });
+    }
+
+    const closeIncModal = document.getElementById('closeIncidentModal');
+    if (closeIncModal) {
+        closeIncModal.addEventListener('click', () => {
+            if (typeof closeIncidentDetailModal === 'function') closeIncidentDetailModal();
+        });
+    }
+
+    // FILTROS
+    const filterEstado = document.getElementById('filter-estado');
+    if (filterEstado) filterEstado.addEventListener('change', () => {
+        if (typeof loadIncidents === 'function') loadIncidents();
     });
 
-    document.getElementById('closePropertyModal').addEventListener('click', () => {
-        closePropertyModal();
+    const filterUrgencia = document.getElementById('filter-urgencia');
+    if (filterUrgencia) filterUrgencia.addEventListener('change', () => {
+        if (typeof loadIncidents === 'function') loadIncidents();
     });
-
-    document.getElementById('propertyForm').addEventListener('submit', handlePropertySubmit);
-
-    document.getElementById('perfilForm').addEventListener('submit', handleProfileSubmit);
-
-    document.getElementById('closeIncidentModal').addEventListener('click', () => {
-        closeIncidentDetailModal();
-    });
-
-    document.getElementById('filter-estado').addEventListener('change', loadIncidents);
-    document.getElementById('filter-urgencia').addEventListener('change', loadIncidents);
 }
