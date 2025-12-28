@@ -135,25 +135,34 @@
         </div>
     </div>
 
-    <div id="property-form-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Nueva Propiedad</h3>
-                <button class="close-modal" id="closePropertyModal">&times;</button>
-            </div>
-            <form id="propertyForm">
-                <div class="form-group">
-                    <label>Dirección</label>
-                    <input type="text" id="property-address" required placeholder="Ej: Calle Mayor 1, 2B">
-                </div>
-                <div class="form-group">
-                    <label>Email del Inquilino (para vincular incidencias)</label>
-                    <input type="email" id="property-tenant-email" required placeholder="inquilino@gmail.com">
-                </div>
-                <button type="submit" class="submit-btn">Guardar Propiedad</button>
-            </form>
+  <div id="property-form-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="property-modal-title">Nueva Propiedad</h3>
+            <button class="close-modal" id="closePropertyModal">&times;</button>
         </div>
+        <form id="propertyForm">
+            <input type="hidden" id="property-id">
+            
+            <div class="form-group">
+                <label>Dirección</label>
+                <input type="text" id="property-address" required placeholder="Ej: Calle Mayor 1, 2B">
+            </div>
+
+            <div class="form-group">
+                <label>Código de Referencia (automático)</label>
+                <input type="text" id="property-reference" readonly style="background: #f3f4f6; font-weight: bold;">
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                <input type="checkbox" id="property-active" checked>
+                <label for="property-active" style="margin: 0;">Propiedad Activa</label>
+            </div>
+
+            <button type="submit" class="submit-btn">Guardar Propiedad</button>
+        </form>
     </div>
+</div>
 
     <div id="toast"></div>
 
