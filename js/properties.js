@@ -87,7 +87,6 @@ function renderProperties(properties) {
 
 // 5. Abrir Modal y Generar código VALIDADO
 
-// 5. Abrir Modal y Generar código (Versión Blindada)
 export async function openPropertyModal() {
     const modal = document.getElementById('property-form-modal');
     const form = document.getElementById('propertyForm');
@@ -95,33 +94,32 @@ export async function openPropertyModal() {
     
     if (!modal || !form) return;
 
-    // 1. Limpiar y mostrar modal inmediatamente
+    // 1. Limpiar y mostrar modal al instante
     form.reset();
     document.getElementById('property-id').value = '';
     modal.style.display = 'flex';
     modal.classList.add('active');
 
-    // 2. Generar código con timeout para no bloquear la UI
+    // 2. Generar código local inmediato (sin esperar a la DB)
+    const tempCode = generatePropertyCode();
     if (refInput) {
-        refInput.value = 'Validando...';
+        refInput.value = tempCode;
+        
+        // 3. Intento de validación silenciosa (opcional)
+        // Si la DB no responde, nos quedamos con el generado arriba
         try {
-            let code = generatePropertyCode();
-            // Verificación rápida
             const { data } = await window._supabase
                 .from('propiedades')
                 .select('id')
-                .eq('referencia', code)
+                .eq('referencia', tempCode)
                 .maybeSingle();
             
-            // Si existe, generamos otro rápido (una sola vez para no entrar en bucles infinitos)
             if (data) {
-                code = generatePropertyCode();
+                // Si justo ese existe, generamos otro y listo
+                refInput.value = generatePropertyCode();
             }
-            refInput.value = code;
-        } catch (err) {
-            console.error("Error generando código:", err);
-            // Si falla la red, ponemos uno aleatorio para poder seguir trabajando
-            refInput.value = generatePropertyCode();
+        } catch (e) {
+            console.warn("No se pudo validar el código, pero usamos el generado localmente.");
         }
     }
 }
