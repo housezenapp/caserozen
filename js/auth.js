@@ -1,65 +1,60 @@
-
-    // 1. Control de Pantallas
-function showLogin() {
-    document.getElementById('login-page').style.display = 'flex';
-    document.getElementById('app-content').style.display = 'none';
-}
-
-function showApp(userName) {
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('app-content').style.display = 'block';
-    
-    const display = document.getElementById('sidebar-username');
-    if (display) display.textContent = userName;
-}
-
-// 2. Lógica de Autenticación Simulada
+/**
+ * js/auth.js - Gestión de Identidad Real
+ */
 export async function initAuth() {
-    const btn = document.getElementById('btnGoogleLogin');
+    // 1. Verificar si ya existe una sesión activa
+    const { data: { session }, error } = await window._supabase.auth.getSession();
+    
+    if (session && session.user) {
+        window.currentUser = session.user;
+        updateUIWithUser(session.user);
+    } else {
+        setupLoginButton();
+    }
 
-    // Datos del usuario ficticio para desarrollo
-    const fakeUser = {
-        id: '00000000-0000-0000-0000-000000000000', // ID genérico
-        email: 'casero_admin@caserozen.com',
-        user_metadata: { full_name: 'Casero Admin (Modo Test)' }
-    };
+    // 2. Escuchar cambios en el estado de autenticación
+    window._supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+            window.currentUser = session.user;
+            updateUIWithUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+            window.currentUser = null;
+            location.reload();
+        }
+    });
+}
 
-    if (btn) {
-        btn.onclick = () => {
-            console.log("🔓 Saltando Google Login...");
-            
-            // Guardamos sesión ficticia en memoria y en disco local
-            window.currentUser = fakeUser;
-            localStorage.setItem('caserozen_bypass', 'true');
-            
-            arrancarApp();
+function setupLoginButton() {
+    const loginBtn = document.getElementById('google-login-btn');
+    if (loginBtn) {
+        loginBtn.onclick = async () => {
+            const { error } = await window._supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin 
+                }
+            });
+            if (error) alert("Error al conectar con Google: " + error.message);
         };
     }
-
-    async function arrancarApp() {
-        showApp(window.currentUser.user_metadata.full_name);
-        
-        // Carga de propiedades desde la base de datos real
-        try {
-            console.log("📦 Cargando propiedades de la DB...");
-            const { loadProperties } = await import('./properties.js');
-            if (loadProperties) await loadProperties();
-        } catch (err) {
-            console.error("⚠️ Error al cargar propiedades:", err);
-        }
-    }
-
-    // Comprobamos si ya habíamos entrado antes (para no loguear cada vez)
-    if (localStorage.getItem('caserozen_bypass') === 'true') {
-        window.currentUser = fakeUser;
-        arrancarApp();
-    } else {
-        showLogin();
-    }
 }
 
-// 3. Logout (Limpiar el bypass)
-window.logout = () => {
-    localStorage.removeItem('caserozen_bypass');
-    window.location.reload();
-};
+function updateUIWithUser(user) {
+    const authSection = document.getElementById('auth-section');
+    const mainApp = document.getElementById('main-app');
+    
+    if (authSection) authSection.classList.add('hidden');
+    if (mainApp) mainApp.classList.remove('hidden');
+
+    // Actualizar datos del perfil en el sidebar
+    const userEmailEl = document.getElementById('user-email');
+    const userNameEl = document.getElementById('sidebar-username');
+    
+    if (userEmailEl) userEmailEl.textContent = user.email;
+    if (userNameEl) userNameEl.textContent = user.user_metadata?.full_name || 'Casero';
+}
+
+export async function logout() {
+    const { error } = await window._supabase.auth.signOut();
+    if (error) console.error("Error logout:", error.message);
+}
