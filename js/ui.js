@@ -30,14 +30,10 @@ function showPage(pageName) {
 
     toggleSidebar();
 
-    if (pageName === 'dashboard') {
-        loadDashboard();
-    } else if (pageName === 'logistica') {
-        loadIncidentsLogistics();
+    if (pageName === 'incidencias') {
+        loadIncidents();
     } else if (pageName === 'propiedades') {
         loadProperties();
-    } else if (pageName === 'tecnicos') {
-        loadTecnicos();
     } else if (pageName === 'perfil') {
         loadProfile();
     }
@@ -132,22 +128,12 @@ function setupEventListeners() {
 
     document.getElementById('propertyForm').addEventListener('submit', handlePropertySubmit);
 
-    document.getElementById('btnAddTecnico').addEventListener('click', () => {
-        openTecnicoModal();
-    });
-
-    document.getElementById('closeTecnicoModal').addEventListener('click', () => {
-        closeTecnicoModal();
-    });
-
-    document.getElementById('tecnicoForm').addEventListener('submit', handleTecnicoSubmit);
-
     document.getElementById('perfilForm').addEventListener('submit', handleProfileSubmit);
 
     document.getElementById('closeIncidentModal').addEventListener('click', () => {
         closeIncidentDetailModal();
     });
 
-    document.getElementById('filter-estado').addEventListener('change', loadIncidentsLogistics);
-    document.getElementById('filter-urgencia').addEventListener('change', loadIncidentsLogistics);
+    document.getElementById('filter-estado').addEventListener('change', loadIncidents);
+    document.getElementById('filter-urgencia').addEventListener('change', loadIncidents);
 }

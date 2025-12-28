@@ -152,7 +152,7 @@ async function showApp() {
             console.log('ℹ️ Usuario casero - Verás solo incidencias de tus propiedades');
         }
 
-        loadDashboard();
+        loadIncidents();
         loadProfile();
     }
 }

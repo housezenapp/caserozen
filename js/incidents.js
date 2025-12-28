@@ -1,4 +1,4 @@
-async function loadIncidentsLogistics() {
+async function loadIncidents() {
     const container = document.getElementById('incidents-logistics-container');
     container.innerHTML = `
         <div class="loading-state">
@@ -31,6 +31,9 @@ async function loadIncidentsLogistics() {
                 .order('created_at', { ascending: false });
 
             if (!data || data.length === 0) {
+                document.getElementById('stat-urgent').textContent = '0';
+                document.getElementById('stat-pending').textContent = '0';
+                document.getElementById('stat-progress').textContent = '0';
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="fa-solid fa-home"></i>
@@ -43,18 +46,30 @@ async function loadIncidentsLogistics() {
             incidents = data;
         }
 
+        const urgentes = incidents.filter(i => i.urgencia === 'alta' && i.estado !== 'Solucionado').length;
+        const pendientes = incidents.filter(i => i.estado === 'Reportada').length;
+        const enProceso = incidents.filter(i =>
+            i.estado !== 'Reportada' && i.estado !== 'Solucionado'
+        ).length;
+
+        document.getElementById('stat-urgent').textContent = urgentes;
+        document.getElementById('stat-pending').textContent = pendientes;
+        document.getElementById('stat-progress').textContent = enProceso;
+
         const filterEstado = document.getElementById('filter-estado').value;
         const filterUrgencia = document.getElementById('filter-urgencia').value;
 
+        let filteredIncidents = [...incidents];
+
         if (filterEstado) {
-            incidents = incidents.filter(i => i.estado === filterEstado);
+            filteredIncidents = filteredIncidents.filter(i => i.estado === filterEstado);
         }
 
         if (filterUrgencia) {
-            incidents = incidents.filter(i => i.urgencia === filterUrgencia);
+            filteredIncidents = filteredIncidents.filter(i => i.urgencia === filterUrgencia);
         }
 
-        if (incidents.length === 0) {
+        if (filteredIncidents.length === 0) {
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-filter"></i>
@@ -64,7 +79,7 @@ async function loadIncidentsLogistics() {
             return;
         }
 
-        renderIncidentsList(incidents);
+        renderIncidentsList(filteredIncidents);
 
     } catch (error) {
         console.error('Error loading incidents:', error);
@@ -387,7 +402,7 @@ async function asignarResponsable(incidentId, responsable) {
 
         showToast(`Responsable asignado: ${responsable}`);
         showIncidentDetail(incidentId);
-        loadDashboard();
+        loadIncidents();
 
     } catch (error) {
         console.error('Error asignando responsable:', error);
@@ -434,7 +449,7 @@ async function asignarTecnico(incidentId) {
 
         showToast('Técnico asignado correctamente');
         showIncidentDetail(incidentId);
-        loadDashboard();
+        loadIncidents();
 
     } catch (error) {
         console.error('Error asignando técnico:', error);
@@ -470,7 +485,7 @@ async function avanzarEstado(incidentId, nuevoEstado) {
 
         showToast('Estado actualizado correctamente');
         showIncidentDetail(incidentId);
-        loadDashboard();
+        loadIncidents();
 
     } catch (error) {
         console.error('Error avanzando estado:', error);
@@ -514,7 +529,7 @@ async function enviarPresupuesto(incidentId) {
 
         showToast('Presupuesto enviado correctamente');
         showIncidentDetail(incidentId);
-        loadDashboard();
+        loadIncidents();
 
     } catch (error) {
         console.error('Error enviando presupuesto:', error);
@@ -549,7 +564,7 @@ async function gestionarPresupuesto(incidentId, decision) {
 
         showToast(decision === 'aceptado' ? 'Presupuesto aceptado' : 'Presupuesto rechazado');
         showIncidentDetail(incidentId);
-        loadDashboard();
+        loadIncidents();
 
     } catch (error) {
         console.error('Error gestionando presupuesto:', error);
@@ -578,5 +593,5 @@ async function guardarNotas(incidentId) {
 
 function closeIncidentDetailModal() {
     document.getElementById('incident-detail-modal').classList.remove('active');
-    loadIncidentsLogistics();
+    loadIncidents();
 }

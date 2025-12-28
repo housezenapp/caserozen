@@ -1,5 +1,40 @@
 let editingPropertyId = null;
 
+function generatePropertyCode() {
+    const numbers = Math.floor(1000 + Math.random() * 9000);
+    const letters = Array.from({length: 3}, () =>
+        String.fromCharCode(65 + Math.floor(Math.random() * 26))
+    ).join('');
+    return `${numbers}${letters}`;
+}
+
+async function isCodeUnique(code) {
+    const { data, error } = await _supabase
+        .from('propiedades')
+        .select('id')
+        .eq('referencia', code)
+        .maybeSingle();
+
+    return !data;
+}
+
+async function generateUniquePropertyCode() {
+    let code;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    do {
+        code = generatePropertyCode();
+        attempts++;
+    } while (!(await isCodeUnique(code)) && attempts < maxAttempts);
+
+    if (attempts >= maxAttempts) {
+        throw new Error('No se pudo generar un código único');
+    }
+
+    return code;
+}
+
 async function loadProperties() {
     const container = document.getElementById('properties-container');
     container.innerHTML = `
@@ -97,19 +132,29 @@ function renderProperties(properties) {
     container.innerHTML = html;
 }
 
-function openPropertyModal(propertyId = null) {
+async function openPropertyModal(propertyId = null) {
     editingPropertyId = propertyId;
     const modal = document.getElementById('property-form-modal');
     const form = document.getElementById('propertyForm');
 
     if (propertyId) {
         document.getElementById('property-modal-title').textContent = 'Editar Propiedad';
-        loadPropertyData(propertyId);
+        await loadPropertyData(propertyId);
     } else {
         document.getElementById('property-modal-title').textContent = 'Nueva Propiedad';
         form.reset();
         document.getElementById('property-id').value = '';
         document.getElementById('property-active').checked = true;
+        document.getElementById('property-reference').value = 'Generando...';
+
+        try {
+            const newCode = await generateUniquePropertyCode();
+            document.getElementById('property-reference').value = newCode;
+        } catch (error) {
+            console.error('Error generando código:', error);
+            showToast('Error al generar código de referencia');
+            document.getElementById('property-reference').value = '';
+        }
     }
 
     modal.classList.add('active');
@@ -149,10 +194,17 @@ async function handlePropertySubmit(e) {
     e.preventDefault();
 
     const propertyId = document.getElementById('property-id').value;
+    const referencia = document.getElementById('property-reference').value;
+
+    if (!referencia || referencia === 'Generando...') {
+        showToast('Espere a que se genere el código de referencia');
+        return;
+    }
+
     const propertyData = {
         casero_id: currentUser.id,
         direccion_completa: document.getElementById('property-address').value,
-        referencia: document.getElementById('property-reference').value || null,
+        referencia: referencia,
         inquilino_nombre: document.getElementById('property-tenant-name').value || null,
         inquilino_email: document.getElementById('property-tenant-email').value || null,
         inquilino_telefono: document.getElementById('property-tenant-phone').value || null,
