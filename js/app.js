@@ -69,10 +69,13 @@ function initUI() {
     });
 
     // --- Eventos del Módulo de Propiedades ---
-    const btnAddProperty = document.getElementById('btnAddProperty');
-    if (btnAddProperty) {
-        btnAddProperty.onclick = openPropertyModal;
-    }
+    const btnAdd = document.getElementById('btnAddProperty');
+if (btnAdd) {
+    btnAdd.onclick = (e) => {
+        e.preventDefault();
+        openPropertyModal();
+    };
+}
 
     const btnCloseModal = document.getElementById('closePropertyModal');
     if (btnCloseModal) {
