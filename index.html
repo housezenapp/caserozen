@@ -24,53 +24,12 @@
         <h1 class="login-title">Housezen Admin</h1>
         <p class="login-subtitle">Gestión Profesional de Propiedades</p>
 
-        <div id="auth-tabs">
-            <button class="auth-tab active" data-tab="login">Iniciar Sesión</button>
-            <button class="auth-tab" data-tab="register">Registrarse</button>
-        </div>
-
-        <form id="loginForm" class="auth-form">
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="login-email" required placeholder="tu@email.com">
-            </div>
-            <div class="form-group">
-                <label>Contraseña</label>
-                <input type="password" id="login-password" required placeholder="••••••••">
-            </div>
-            <button type="submit" class="auth-btn primary-btn">
-                <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
-            </button>
-        </form>
-
-        <form id="registerForm" class="auth-form" style="display: none;">
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="register-email" required placeholder="tu@email.com">
-            </div>
-            <div class="form-group">
-                <label>Contraseña</label>
-                <input type="password" id="register-password" required placeholder="Mínimo 6 caracteres">
-            </div>
-            <div class="form-group">
-                <label>Confirmar Contraseña</label>
-                <input type="password" id="register-password-confirm" required placeholder="••••••••">
-            </div>
-            <button type="submit" class="auth-btn primary-btn">
-                <i class="fa-solid fa-user-plus"></i> Crear Cuenta
-            </button>
-        </form>
-
-        <div class="auth-divider">
-            <span>o continuar con</span>
-        </div>
-
-        <button id="btnGoogleLogin" class="auth-btn google-btn">
-            <i class="fa-brands fa-google"></i> Google
+        <button id="btnGoogleLogin" class="auth-btn google-btn" onclick="loginWithGoogle()">
+            <i class="fa-brands fa-google"></i> Entrar con Google
         </button>
     </div>
 
-    <div id="app-content">
+    <div id="app-content" style="display: none;">
         <div class="top-bar">
             <button class="menu-btn" id="menuBtn">
                 <i class="fa-solid fa-bars"></i>
@@ -84,54 +43,44 @@
         <nav class="sidebar-nav" id="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-label">Sesión Activa</div>
-                <div class="sidebar-username" id="sidebar-username"></div>
+                <div class="sidebar-username" id="sidebar-username">Cargando...</div>
             </div>
             <div class="nav-item active" data-page="incidencias">
-                <i class="fa-solid fa-list-check"></i>
-                Incidencias
+                <i class="fa-solid fa-list-check"></i> Incidencias
             </div>
             <div class="nav-item" data-page="propiedades">
-                <i class="fa-solid fa-building"></i>
-                Mis Propiedades
+                <i class="fa-solid fa-building"></i> Mis Propiedades
             </div>
             <div class="nav-item" data-page="perfil">
-                <i class="fa-solid fa-user-tie"></i>
-                Mi Perfil
+                <i class="fa-solid fa-user-tie"></i> Mi Perfil
             </div>
-            <div class="nav-item nav-logout" id="btnLogout">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                Cerrar Sesión
+            <div class="nav-item nav-logout" onclick="logout()">
+                <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
             </div>
         </nav>
 
         <div class="menu-overlay" id="menuOverlay"></div>
 
         <div class="page active" id="page-incidencias">
-            <h2 class="page-title">Incidencias</h2>
-
+            <h2 class="page-title">Incidencias de Inquilinos</h2>
+            
             <div class="stats-grid">
                 <div class="stat-card urgent">
-                    <div class="stat-icon">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
+                    <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
                     <div class="stat-content">
                         <div class="stat-number" id="stat-urgent">0</div>
                         <div class="stat-label">Urgentes</div>
                     </div>
                 </div>
                 <div class="stat-card pending">
-                    <div class="stat-icon">
-                        <i class="fa-solid fa-clock"></i>
-                    </div>
+                    <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
                     <div class="stat-content">
                         <div class="stat-number" id="stat-pending">0</div>
-                        <div class="stat-label">Pendientes</div>
+                        <div class="stat-label">Nuevas</div>
                     </div>
                 </div>
                 <div class="stat-card progress">
-                    <div class="stat-icon">
-                        <i class="fa-solid fa-gear"></i>
-                    </div>
+                    <div class="stat-icon"><i class="fa-solid fa-gear"></i></div>
                     <div class="stat-content">
                         <div class="stat-number" id="stat-progress">0</div>
                         <div class="stat-label">En Proceso</div>
@@ -142,130 +91,67 @@
             <div class="filters-bar">
                 <select id="filter-estado" class="filter-select">
                     <option value="">Todos los estados</option>
-                    <option value="Reportada">Reportada</option>
-                    <option value="Asignación de Pago">Asignación de Pago</option>
-                    <option value="En manos del Técnico">En manos del Técnico</option>
-                    <option value="Reparación en Curso">Reparación en Curso</option>
-                    <option value="Presupuesto Pendiente">Presupuesto Pendiente</option>
-                    <option value="Solucionado">Solucionado</option>
-                </select>
-                <select id="filter-urgencia" class="filter-select">
-                    <option value="">Todas las urgencias</option>
-                    <option value="alta">Alta</option>
-                    <option value="media">Media</option>
-                    <option value="baja">Baja</option>
+                    <option value="Recibida">Recibida</option>
+                    <option value="En Revisión">En Revisión</option>
+                    <option value="Técnico Asignado">Técnico Asignado</option>
+                    <option value="En Curso">En Curso</option>
+                    <option value="Solucionada">Solucionada</option>
                 </select>
             </div>
 
-            <div id="incidents-logistics-container"></div>
+            <div id="incidents-logistics-container">
+                </div>
         </div>
 
         <div class="page" id="page-propiedades">
             <h2 class="page-title">Mis Propiedades</h2>
-
             <button class="add-btn" id="btnAddProperty">
                 <i class="fa-solid fa-plus"></i> Añadir Propiedad
             </button>
-
             <div id="properties-container"></div>
-
-            <div id="property-form-modal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3 id="property-modal-title">Nueva Propiedad</h3>
-                        <button class="close-modal" id="closePropertyModal">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                    <form id="propertyForm">
-                        <input type="hidden" id="property-id">
-                        <div class="form-group">
-                            <label>Dirección Completa</label>
-                            <input type="text" id="property-address" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Código de Referencia (generado automáticamente)</label>
-                            <input type="text" id="property-reference" readonly placeholder="Se generará automáticamente">
-                        </div>
-                        <div class="form-group">
-                            <label>Nombre del Inquilino</label>
-                            <input type="text" id="property-tenant-name">
-                        </div>
-                        <div class="form-group">
-                            <label>Email del Inquilino</label>
-                            <input type="email" id="property-tenant-email">
-                        </div>
-                        <div class="form-group">
-                            <label>Teléfono del Inquilino</label>
-                            <input type="tel" id="property-tenant-phone">
-                        </div>
-                        <div class="form-group">
-                            <label>Fecha Inicio Alquiler</label>
-                            <input type="date" id="property-start-date">
-                        </div>
-                        <div class="form-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="property-active" checked>
-                                <span>Propiedad actualmente alquilada</span>
-                            </label>
-                        </div>
-                        <button type="submit" class="submit-btn">
-                            <i class="fa-solid fa-save"></i> Guardar Propiedad
-                        </button>
-                    </form>
-                </div>
-            </div>
         </div>
 
         <div class="page" id="page-perfil">
-            <h2 class="page-title">Mi Perfil</h2>
+            <h2 class="page-title">Configuración de Perfil</h2>
             <div class="card">
-                <div class="card-header">
-                    <div class="icon"><i class="fa-solid fa-user-tie"></i></div>
-                    DATOS DEL CASERO
-                </div>
                 <form id="perfilForm">
                     <div class="form-group">
                         <label>Nombre Completo</label>
                         <input type="text" id="perfil-nombre" required>
                     </div>
                     <div class="form-group">
-                        <label>DNI / CIF</label>
-                        <input type="text" id="perfil-dni">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
+                        <label>Email (Google)</label>
                         <input type="email" id="perfil-email" readonly>
                     </div>
                     <div class="form-group">
-                        <label>Teléfono Principal</label>
+                        <label>Teléfono</label>
                         <input type="tel" id="perfil-telefono">
                     </div>
-                    <div class="form-group">
-                        <label>Teléfono de Emergencias</label>
-                        <input type="tel" id="perfil-emergencia">
-                    </div>
-                    <div class="form-group">
-                        <label>Dirección</label>
-                        <textarea id="perfil-direccion" rows="3"></textarea>
-                    </div>
-                    <button type="submit" class="submit-btn" id="btnSavePerfil">
-                        <i class="fa-solid fa-save"></i> Guardar Perfil
+                    <button type="submit" class="submit-btn">
+                        <i class="fa-solid fa-save"></i> Actualizar Datos
                     </button>
                 </form>
             </div>
         </div>
+    </div>
 
-        <div id="incident-detail-modal" class="modal">
-            <div class="modal-content modal-large">
-                <div class="modal-header">
-                    <h3>Detalle de Incidencia</h3>
-                    <button class="close-modal" id="closeIncidentModal">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div id="incident-detail-content"></div>
+    <div id="property-form-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nueva Propiedad</h3>
+                <button class="close-modal" id="closePropertyModal">&times;</button>
             </div>
+            <form id="propertyForm">
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" id="property-address" required placeholder="Ej: Calle Mayor 1, 2B">
+                </div>
+                <div class="form-group">
+                    <label>Email del Inquilino (para vincular incidencias)</label>
+                    <input type="email" id="property-tenant-email" required placeholder="inquilino@gmail.com">
+                </div>
+                <button type="submit" class="submit-btn">Guardar Propiedad</button>
+            </form>
         </div>
     </div>
 
