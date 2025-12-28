@@ -1,86 +1,65 @@
-// 1. Función de Login
+// 1. Lógica de inicio con Google
 async function loginWithGoogle() {
-    try {
-        const { error } = await window._supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: window.location.origin + window.location.pathname
-            }
-        });
-        if (error) throw error;
-    } catch (err) {
-        console.error("Error en login:", err.message);
-    }
+    await window._supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin + window.location.pathname }
+    });
 }
 
-// 2. Portero y Detector de Sesión
+// 2. El Portero (initAuth)
 export async function initAuth() {
     const btn = document.getElementById('btnGoogleLogin');
     if (btn) btn.onclick = loginWithGoogle;
 
+    // Esta función centraliza la entrada a la app
     const handleAuth = async (session) => {
         if (session) {
             window.currentUser = session.user;
-            
-            // Limpia el enlace largo de la URL
+
+            // Limpia el enlace largo de Google en la barra de direcciones
             if (window.location.hash.includes('access_token')) {
                 window.history.replaceState(null, null, window.location.pathname);
             }
 
-            showApp();
-            await ensureCaseroProfile();
-            
-            // Carga propiedades
+            // Cambia la interfaz visual
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+
+            // Actualiza nombre en el menú
+            const nameDisplay = document.getElementById('sidebar-username');
+            if (nameDisplay) nameDisplay.textContent = session.user.user_metadata?.full_name || session.user.email;
+
+            // Registro silencioso en la tabla 'caseros'
+            await window._supabase.from('caseros').upsert({
+                id: session.user.id,
+                email: session.user.email,
+                nombre_completo: session.user.user_metadata?.full_name || ''
+            });
+
+            // CARGA DE PROPIEDADES (Importación dinámica)
             try {
                 const { loadProperties } = await import('./properties.js');
                 loadProperties();
-            } catch (e) {
-                console.error("Error cargando propiedades:", e);
+            } catch (err) {
+                console.error("Error cargando propiedades:", err);
             }
         } else {
-            showLogin();
+            // Si no hay sesión, muestra el login
+            document.getElementById('login-page').style.display = 'flex';
+            document.getElementById('app-content').style.display = 'none';
         }
     };
 
-    // Comprobación inicial
+    // ESCUCHA ACTIVA: Detecta sesión al cargar y cuando cambia el estado
     const { data } = await window._supabase.auth.getSession();
-    await handleAuth(data.session);
+    handleAuth(data.session);
 
-    // Escucha cambios
-    window._supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-            await handleAuth(session);
-        } else if (event === 'SIGNED_OUT') {
-            showLogin();
-        }
+    window._supabase.auth.onAuthStateChange((_event, session) => {
+        handleAuth(session);
     });
 }
 
-// 3. Registro en Base de Datos
-async function ensureCaseroProfile() {
-    if (!window.currentUser) return;
-    const { id, email, user_metadata } = window.currentUser;
-    await window._supabase.from('caseros').upsert({
-        id: id,
-        email: email,
-        nombre_completo: user_metadata?.full_name || ''
-    });
-}
-
-// 4. Control Visual
-function showLogin() {
-    document.getElementById('login-page').style.display = 'flex';
-    document.getElementById('app-content').style.display = 'none';
-}
-
-function showApp() {
-    document.getElementById('login-page').style.display = 'none';
-    document.getElementById('app-content').style.display = 'block';
-    const name = window.currentUser?.user_metadata?.full_name || window.currentUser?.email;
-    const display = document.getElementById('sidebar-username');
-    if (display) display.textContent = name;
-}
-
+// 3. Función de Logout accesible desde el menú
 window.logout = async () => {
     await window._supabase.auth.signOut();
     window.location.href = window.location.origin + window.location.pathname;
