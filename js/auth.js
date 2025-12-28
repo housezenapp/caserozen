@@ -1,7 +1,6 @@
 // 1. Función de Login
 async function loginWithGoogle() {
     try {
-        console.log("Iniciando flujo de Google...");
         const { error } = await window._supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -16,18 +15,14 @@ async function loginWithGoogle() {
 
 // 2. Portero y Detector de Sesión
 export async function initAuth() {
-    console.log("Verificando sesión...");
-
     const btn = document.getElementById('btnGoogleLogin');
     if (btn) btn.onclick = loginWithGoogle;
 
-    // Función interna para procesar la entrada
     const handleAuth = async (session) => {
         if (session) {
-            console.log("✅ Acceso concedido:", session.user.email);
             window.currentUser = session.user;
             
-            // LIMPIEZA DE URL: Borra el access_token de la barra de direcciones
+            // Limpia el enlace largo de la URL
             if (window.location.hash.includes('access_token')) {
                 window.history.replaceState(null, null, window.location.pathname);
             }
@@ -35,7 +30,7 @@ export async function initAuth() {
             showApp();
             await ensureCaseroProfile();
             
-            // Carga de propiedades
+            // Carga propiedades
             try {
                 const { loadProperties } = await import('./properties.js');
                 loadProperties();
@@ -43,19 +38,16 @@ export async function initAuth() {
                 console.error("Error cargando propiedades:", e);
             }
         } else {
-            console.log("❌ Sin sesión activa");
             showLogin();
         }
     };
 
-    // Paso 1: Comprobar si ya hay sesión (o si acabamos de volver de Google)
-    const { data, error } = await window._supabase.auth.getSession();
-    if (error) console.error("Error recuperando sesión:", error);
+    // Comprobación inicial
+    const { data } = await window._supabase.auth.getSession();
     await handleAuth(data.session);
 
-    // Paso 2: Escuchar cambios de estado
+    // Escucha cambios
     window._supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log("Evento de Autenticación:", event);
         if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
             await handleAuth(session);
         } else if (event === 'SIGNED_OUT') {
@@ -68,37 +60,27 @@ export async function initAuth() {
 async function ensureCaseroProfile() {
     if (!window.currentUser) return;
     const { id, email, user_metadata } = window.currentUser;
-    
-    const { error } = await window._supabase.from('caseros').upsert({
+    await window._supabase.from('caseros').upsert({
         id: id,
         email: email,
         nombre_completo: user_metadata?.full_name || ''
     });
-    
-    if (error) console.error("Error actualizando perfil casero:", error);
 }
 
-// 4. Control Visual de Pantallas
+// 4. Control Visual
 function showLogin() {
-    const loginPage = document.getElementById('login-page');
-    const appContent = document.getElementById('app-content');
-    if (loginPage) loginPage.style.display = 'flex';
-    if (appContent) appContent.style.display = 'none';
+    document.getElementById('login-page').style.display = 'flex';
+    document.getElementById('app-content').style.display = 'none';
 }
 
 function showApp() {
-    const loginPage = document.getElementById('login-page');
-    const appContent = document.getElementById('app-content');
-    
-    if (loginPage) loginPage.style.display = 'none';
-    if (appContent) appContent.style.display = 'block';
-    
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
     const name = window.currentUser?.user_metadata?.full_name || window.currentUser?.email;
     const display = document.getElementById('sidebar-username');
     if (display) display.textContent = name;
 }
 
-// Logout Global
 window.logout = async () => {
     await window._supabase.auth.signOut();
     window.location.href = window.location.origin + window.location.pathname;
