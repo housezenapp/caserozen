@@ -31,6 +31,8 @@ async function handleProfileSubmit(e) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
 
+    console.log('Usuario actual:', currentUser);
+
     const profileData = {
         id: currentUser.id,
         nombre_completo: document.getElementById('perfil-nombre').value,
@@ -41,25 +43,36 @@ async function handleProfileSubmit(e) {
         direccion: document.getElementById('perfil-direccion').value || null
     };
 
+    console.log('Datos del perfil a guardar:', profileData);
+
     try {
-        const { data: existing } = await _supabase
+        const { data: existing, error: selectError } = await _supabase
             .from('caseros')
             .select('id')
             .eq('id', currentUser.id)
             .maybeSingle();
 
+        console.log('Perfil existente:', existing);
+        if (selectError) console.log('Error al buscar perfil:', selectError);
+
         if (existing) {
-            const { error } = await _supabase
+            console.log('Actualizando perfil existente...');
+            const { data, error } = await _supabase
                 .from('caseros')
                 .update(profileData)
-                .eq('id', currentUser.id);
+                .eq('id', currentUser.id)
+                .select();
 
+            console.log('Resultado de actualización:', { data, error });
             if (error) throw error;
         } else {
-            const { error } = await _supabase
+            console.log('Insertando nuevo perfil...');
+            const { data, error } = await _supabase
                 .from('caseros')
-                .insert([profileData]);
+                .insert([profileData])
+                .select();
 
+            console.log('Resultado de inserción:', { data, error });
             if (error) throw error;
         }
 
@@ -70,8 +83,9 @@ async function handleProfileSubmit(e) {
         }, 2000);
 
     } catch (error) {
-        console.error('Error saving profile:', error);
-        showToast('Error al guardar el perfil');
+        console.error('Error completo saving profile:', error);
+        console.error('Detalles del error:', error.message, error.details, error.hint);
+        showToast('Error al guardar el perfil: ' + (error.message || 'Error desconocido'));
         btn.innerHTML = '<i class="fa-solid fa-save"></i> Guardar Perfil';
     } finally {
         btn.disabled = false;

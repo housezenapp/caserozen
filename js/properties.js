@@ -201,6 +201,8 @@ async function handlePropertySubmit(e) {
         return;
     }
 
+    console.log('Usuario actual:', currentUser);
+
     const propertyData = {
         casero_id: currentUser.id,
         direccion_completa: document.getElementById('property-address').value,
@@ -212,20 +214,28 @@ async function handlePropertySubmit(e) {
         activa: document.getElementById('property-active').checked
     };
 
+    console.log('Datos de propiedad a guardar:', propertyData);
+
     try {
         if (propertyId) {
-            const { error } = await _supabase
+            console.log('Actualizando propiedad:', propertyId);
+            const { data, error } = await _supabase
                 .from('propiedades')
                 .update(propertyData)
-                .eq('id', propertyId);
+                .eq('id', propertyId)
+                .select();
 
+            console.log('Resultado de actualización:', { data, error });
             if (error) throw error;
             showToast('Propiedad actualizada correctamente');
         } else {
-            const { error } = await _supabase
+            console.log('Insertando nueva propiedad...');
+            const { data, error } = await _supabase
                 .from('propiedades')
-                .insert([propertyData]);
+                .insert([propertyData])
+                .select();
 
+            console.log('Resultado de inserción:', { data, error });
             if (error) throw error;
             showToast('Propiedad añadida correctamente');
         }
@@ -234,8 +244,9 @@ async function handlePropertySubmit(e) {
         loadProperties();
 
     } catch (error) {
-        console.error('Error saving property:', error);
-        showToast('Error al guardar la propiedad');
+        console.error('Error completo saving property:', error);
+        console.error('Detalles del error:', error.message, error.details, error.hint);
+        showToast('Error al guardar la propiedad: ' + (error.message || 'Error desconocido'));
     }
 }
 
