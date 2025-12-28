@@ -1,5 +1,6 @@
-// 1. GESTIÓN DE INTERFAZ (UI)
+// --- FUNCIONES DE INTERFAZ ---
 function showLogin() {
+    console.log("Mostrando pantalla de Login");
     const loginPage = document.getElementById('login-page');
     const appContent = document.getElementById('app-content');
     if (loginPage) loginPage.style.display = 'flex';
@@ -7,21 +8,20 @@ function showLogin() {
 }
 
 function showApp(user) {
+    console.log("Mostrando pantalla de Aplicación");
     const loginPage = document.getElementById('login-page');
     const appContent = document.getElementById('app-content');
     if (loginPage) loginPage.style.display = 'none';
     if (appContent) appContent.style.display = 'block';
 
-    // Actualizar nombre del casero en el menú
     const name = user.user_metadata?.full_name || user.email;
     const display = document.getElementById('sidebar-username');
     if (display) display.textContent = name;
 }
 
-// 2. REGISTRO EN BASE DE DATOS
+// --- LOGICA DE BASE DE DATOS ---
 async function ensureCaseroProfile(user) {
     if (!user) return;
-    console.log("Actualizando perfil en base de datos...");
     try {
         const { error } = await window._supabase.from('caseros').upsert({
             id: user.id,
@@ -30,77 +30,80 @@ async function ensureCaseroProfile(user) {
             ultima_conexion: new Date().toISOString()
         });
         if (error) throw error;
+        console.log("✅ Perfil de casero sincronizado");
     } catch (err) {
-        console.error("Error guardando perfil:", err.message);
+        console.error("❌ Error en base de datos:", err.message);
     }
 }
 
-// 3. CARGA DE MÓDULOS EXTERNOS
-async function loadAppData() {
+// --- CARGA DE DATOS ---
+async function loadPropertiesData() {
     try {
-        console.log("Cargando propiedades...");
         const { loadProperties } = await import('./properties.js');
-        if (typeof loadProperties === 'function') {
-            await loadProperties();
-        }
-    } catch (err) {
-        console.error("Error al cargar propiedades del casero:", err);
+        if (loadProperties) await loadProperties();
+    } catch (e) {
+        console.warn("Aviso: No se pudieron cargar las propiedades aún.");
     }
 }
 
-// 4. FLUJO PRINCIPAL (initAuth)
+// --- FUNCIÓN PRINCIPAL DE AUTENTICACIÓN ---
 export async function initAuth() {
-    // Vincular botón de Google
     const btn = document.getElementById('btnGoogleLogin');
     if (btn) {
         btn.onclick = async () => {
-            console.log("Redirigiendo a Google OAuth...");
-            const { error } = await window._supabase.auth.signInWithOAuth({
+            console.log("Iniciando OAuth...");
+            await window._supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: { redirectTo: window.location.origin + window.location.pathname }
             });
-            if (error) alert("Error al conectar: " + error.message);
         };
     }
 
-    // EL DETECTOR MAESTRO (Controla toda la entrada)
-    const handleSession = async (session) => {
+    // Proceso unificado de entrada
+    const handleEntry = async (session) => {
         if (session) {
-            console.log("✅ Sesión válida detectada.");
+            console.log("🔑 Sesión confirmada para:", session.user.email);
             window.currentUser = session.user;
 
-            // Limpiar la URL si venimos de Google
+            // Limpiar URL
             if (window.location.hash.includes('access_token')) {
                 window.history.replaceState(null, null, window.location.pathname);
             }
 
             showApp(session.user);
             await ensureCaseroProfile(session.user);
-            await loadAppData();
+            await loadPropertiesData();
         } else {
-            console.log("❌ Sin sesión. Redirigiendo a login.");
             showLogin();
         }
     };
 
-    // Comprobación inicial (Nada más cargar)
-    const { data: { session } } = await window._supabase.auth.getSession();
-    handleSession(session);
+    // 1. INTENTO DE RECUPERACIÓN MANUAL (Para cuando se queda "enquistado")
+    console.log("Buscando sesión existente...");
+    const { data: { session }, error } = await window._supabase.auth.getSession();
+    
+    if (error) {
+        console.error("Error al recuperar sesión:", error);
+        showLogin();
+        return;
+    }
 
-    // Escuchar cambios (Login/Logout)
-    window._supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log("Evento Auth Detectado:", event);
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-            handleSession(session);
-        } else if (event === 'SIGNED_OUT') {
-            showLogin();
-        }
-    });
+    if (session) {
+        await handleEntry(session);
+    } else {
+        // 2. ESCUCHA DE EVENTOS (Por si el getSession falló pero el evento llega)
+        window._supabase.auth.onAuthStateChange(async (event, newSession) => {
+            console.log("Evento detectado:", event);
+            if (newSession && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+                await handleEntry(newSession);
+            } else if (event === 'SIGNED_OUT') {
+                showLogin();
+            }
+        });
+    }
 }
 
-// 5. LOGOUT GLOBAL
 window.logout = async () => {
-    console.log("Cerrando sesión...");
     await window._supabase.auth.signOut();
     window.location.href = window.location.origin + window.location.pathname;
 };
