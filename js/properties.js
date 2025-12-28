@@ -1,4 +1,5 @@
-let editingPropertyId = null;
+// Usamos window._supabase que definimos en app.js
+const _supabase = window._supabase;
 
 function generatePropertyCode() {
     const numbers = Math.floor(1000 + Math.random() * 9000);
@@ -9,12 +10,11 @@ function generatePropertyCode() {
 }
 
 async function isCodeUnique(code) {
-    const { data, error } = await _supabase
+    const { data } = await _supabase
         .from('propiedades')
         .select('id')
         .eq('referencia', code)
         .maybeSingle();
-
     return !data;
 }
 
@@ -22,120 +22,65 @@ async function generateUniquePropertyCode() {
     let code;
     let attempts = 0;
     const maxAttempts = 10;
-
     do {
         code = generatePropertyCode();
         attempts++;
     } while (!(await isCodeUnique(code)) && attempts < maxAttempts);
-
-    if (attempts >= maxAttempts) {
-        throw new Error('No se pudo generar un código único');
-    }
-
+    if (attempts >= maxAttempts) throw new Error('No se pudo generar un código único');
     return code;
 }
 
-async function loadProperties() {
+// EXPORTAMOS para que ui.js pueda llamarla
+export async function loadProperties() {
     const container = document.getElementById('properties-container');
-    container.innerHTML = `
-        <div class="loading-state">
-            <i class="fa-solid fa-spinner fa-spin"></i>
-            <div class="empty-state-text">Cargando propiedades...</div>
-        </div>
-    `;
+    if (!container) return;
+
+    container.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Cargando...</div>`;
 
     try {
         const { data: properties, error } = await _supabase
             .from('propiedades')
             .select('*')
-            .eq('casero_id', currentUser.id)
+            .eq('casero_id', window.currentUser.id)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-
-        if (!properties || properties.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fa-solid fa-building"></i>
-                    <div class="empty-state-text">Aún no has añadido propiedades</div>
-                </div>
-            `;
-            return;
-        }
-
-        renderProperties(properties);
-
+        renderProperties(properties || []);
     } catch (error) {
-        console.error('Error loading properties:', error);
-        showToast('Error al cargar las propiedades');
+        console.error('Error:', error);
+        if (window.showToast) window.showToast('Error al cargar propiedades');
     }
 }
 
 function renderProperties(properties) {
     const container = document.getElementById('properties-container');
+    if (properties.length === 0) {
+        container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-building"></i><p>Aún no tienes propiedades</p></div>`;
+        return;
+    }
 
-    const html = properties.map(prop => `
+    container.innerHTML = properties.map(prop => `
         <div class="property-card">
             <div class="property-header">
-                <div class="property-title">${prop.direccion_completa}</div>
+                <div class="property-title">${prop.direccion_completa || 'Sin dirección'}</div>
                 <div class="property-actions">
-                    <button class="icon-btn" onclick="editProperty('${prop.id}')">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                    <button class="icon-btn delete" onclick="deleteProperty('${prop.id}')">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                    <button class="icon-btn" onclick="editProperty('${prop.id}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="icon-btn delete" onclick="deleteProperty('${prop.id}')"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
-            ${prop.referencia ? `
-                <div class="property-info">
-                    <div class="property-info-row">
-                        <i class="fa-solid fa-tag"></i>
-                        <span>Ref: ${prop.referencia}</span>
-                    </div>
-                </div>
-            ` : ''}
-            ${prop.inquilino_nombre || prop.inquilino_email ? `
-                <div class="property-info">
-                    ${prop.inquilino_nombre ? `
-                        <div class="property-info-row">
-                            <i class="fa-solid fa-user"></i>
-                            <span>${prop.inquilino_nombre}</span>
-                        </div>
-                    ` : ''}
-                    ${prop.inquilino_email ? `
-                        <div class="property-info-row">
-                            <i class="fa-solid fa-envelope"></i>
-                            <span>${prop.inquilino_email}</span>
-                        </div>
-                    ` : ''}
-                    ${prop.inquilino_telefono ? `
-                        <div class="property-info-row">
-                            <i class="fa-solid fa-phone"></i>
-                            <span>${prop.inquilino_telefono}</span>
-                        </div>
-                    ` : ''}
-                    ${prop.fecha_inicio_alquiler ? `
-                        <div class="property-info-row">
-                            <i class="fa-solid fa-calendar"></i>
-                            <span>Inicio: ${formatDateShort(prop.fecha_inicio_alquiler)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-            ` : '<p style="color: var(--text-lighter); font-size: 0.9rem;">Sin inquilino asignado</p>'}
-            <span class="active-badge ${prop.activa ? 'active' : 'inactive'}">
-                ${prop.activa ? 'Activa' : 'Inactiva'}
-            </span>
+            <div class="property-info">
+                <div class="property-info-row"><i class="fa-solid fa-tag"></i> <span>Ref: <strong>${prop.referencia}</strong></span></div>
+            </div>
+            <span class="active-badge ${prop.activa ? 'active' : 'inactive'}">${prop.activa ? 'Activa' : 'Inactiva'}</span>
         </div>
     `).join('');
-
-    container.innerHTML = html;
 }
 
-async function openPropertyModal(propertyId = null) {
-    editingPropertyId = propertyId;
+// EXPORTAMOS el modal
+export async function openPropertyModal(propertyId = null) {
     const modal = document.getElementById('property-form-modal');
     const form = document.getElementById('propertyForm');
+    if (!modal) return;
 
     if (propertyId) {
         document.getElementById('property-modal-title').textContent = 'Editar Propiedad';
@@ -146,142 +91,63 @@ async function openPropertyModal(propertyId = null) {
         document.getElementById('property-id').value = '';
         document.getElementById('property-active').checked = true;
         document.getElementById('property-reference').value = 'Generando...';
-
-        try {
-            const newCode = await generateUniquePropertyCode();
-            document.getElementById('property-reference').value = newCode;
-        } catch (error) {
-            console.error('Error generando código:', error);
-            showToast('Error al generar código de referencia');
-            document.getElementById('property-reference').value = '';
-        }
+        const newCode = await generateUniquePropertyCode();
+        document.getElementById('property-reference').value = newCode;
     }
-
     modal.classList.add('active');
 }
 
 async function loadPropertyData(propertyId) {
-    try {
-        const { data: property, error } = await _supabase
-            .from('propiedades')
-            .select('*')
-            .eq('id', propertyId)
-            .single();
-
-        if (error) throw error;
-
+    const { data: property } = await _supabase.from('propiedades').select('*').eq('id', propertyId).single();
+    if (property) {
         document.getElementById('property-id').value = property.id;
-        document.getElementById('property-address').value = property.direccion_completa || '';
-        document.getElementById('property-reference').value = property.referencia || '';
-        document.getElementById('property-tenant-name').value = property.inquilino_nombre || '';
-        document.getElementById('property-tenant-email').value = property.inquilino_email || '';
-        document.getElementById('property-tenant-phone').value = property.inquilino_telefono || '';
-        document.getElementById('property-start-date').value = property.fecha_inicio_alquiler || '';
+        document.getElementById('property-address').value = property.direccion_completa;
+        document.getElementById('property-reference').value = property.referencia;
         document.getElementById('property-active').checked = property.activa;
-
-    } catch (error) {
-        console.error('Error loading property:', error);
-        showToast('Error al cargar la propiedad');
     }
 }
 
-function closePropertyModal() {
+export function closePropertyModal() {
     document.getElementById('property-form-modal').classList.remove('active');
-    editingPropertyId = null;
 }
 
-async function handlePropertySubmit(e) {
+export async function handlePropertySubmit(e) {
     e.preventDefault();
-
     const propertyId = document.getElementById('property-id').value;
-    const referencia = document.getElementById('property-reference').value;
-
-    if (!referencia || referencia === 'Generando...') {
-        showToast('Espere a que se genere el código de referencia');
-        return;
-    }
-
-    console.log('Usuario actual:', currentUser);
-
-    const { data: { session } } = await _supabase.auth.getSession();
-    console.log('Sesión actual:', session);
-    console.log('Token JWT:', session?.access_token);
-    console.log('Usuario de sesión:', session?.user?.id);
-    console.log('Comparación IDs:', {
-        currentUser: currentUser?.id,
-        sessionUser: session?.user?.id,
-        sonIguales: currentUser?.id === session?.user?.id
-    });
-
+    
     const propertyData = {
-        casero_id: currentUser.id,
+        casero_id: window.currentUser.id,
         direccion_completa: document.getElementById('property-address').value,
-        referencia: referencia,
-        inquilino_nombre: document.getElementById('property-tenant-name').value || null,
-        inquilino_email: document.getElementById('property-tenant-email').value || null,
-        inquilino_telefono: document.getElementById('property-tenant-phone').value || null,
-        fecha_inicio_alquiler: document.getElementById('property-start-date').value || null,
+        referencia: document.getElementById('property-reference').value,
         activa: document.getElementById('property-active').checked
     };
 
-    console.log('Datos de propiedad a guardar:', propertyData);
-
     try {
+        let error;
         if (propertyId) {
-            console.log('Actualizando propiedad:', propertyId);
-            const { data, error } = await _supabase
-                .from('propiedades')
-                .update(propertyData)
-                .eq('id', propertyId)
-                .select();
-
-            console.log('Resultado de actualización:', { data, error });
-            if (error) throw error;
-            showToast('Propiedad actualizada correctamente');
+            ({ error } = await _supabase.from('propiedades').update(propertyData).eq('id', propertyId));
         } else {
-            console.log('Insertando nueva propiedad...');
-            const { data, error } = await _supabase
-                .from('propiedades')
-                .insert([propertyData])
-                .select();
-
-            console.log('Resultado de inserción:', { data, error });
-            if (error) throw error;
-            showToast('Propiedad añadida correctamente');
+            ({ error } = await _supabase.from('propiedades').insert([propertyData]));
         }
 
+        if (error) throw error;
         closePropertyModal();
         loadProperties();
-
+        if (window.showToast) window.showToast('Propiedad guardada');
     } catch (error) {
-        console.error('Error completo saving property:', error);
-        console.error('Detalles del error:', error.message, error.details, error.hint);
-        showToast('Error al guardar la propiedad: ' + (error.message || 'Error desconocido'));
+        console.error('Error:', error);
+        alert('Error al guardar: ' + error.message);
     }
 }
 
-async function editProperty(propertyId) {
-    openPropertyModal(propertyId);
-}
+// HACEMOS LAS FUNCIONES GLOBALES para que el HTML (onclick) las vea
+window.editProperty = editProperty;
+window.deleteProperty = deleteProperty;
 
-async function deleteProperty(propertyId) {
-    if (!confirm('¿Estás seguro de eliminar esta propiedad?')) {
-        return;
-    }
+async function editProperty(id) { openPropertyModal(id); }
 
-    try {
-        const { error } = await _supabase
-            .from('propiedades')
-            .delete()
-            .eq('id', propertyId);
-
-        if (error) throw error;
-
-        showToast('Propiedad eliminada correctamente');
-        loadProperties();
-
-    } catch (error) {
-        console.error('Error deleting property:', error);
-        showToast('Error al eliminar la propiedad');
-    }
+async function deleteProperty(id) {
+    if (!confirm('¿Eliminar propiedad?')) return;
+    await _supabase.from('propiedades').delete().eq('id', id);
+    loadProperties();
 }
