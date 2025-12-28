@@ -1,3 +1,10 @@
+import { 
+    loadProperties, 
+    openPropertyModal, 
+    closePropertyModal, 
+    handlePropertySubmit 
+} from './properties.js';
+
 // Añadimos export para que app.js pueda activar los botones
 export function showToast(message) {
     const toast = document.getElementById('toast');
@@ -42,7 +49,8 @@ export function showPage(pageName) {
     if (pageName === 'incidencias') {
         if (typeof loadIncidents === 'function') loadIncidents();
     } else if (pageName === 'propiedades') {
-        if (typeof loadProperties === 'function') loadProperties();
+        // Ahora cargamos las propiedades usando la función importada
+        loadProperties();
     } else if (pageName === 'perfil') {
         if (typeof loadProfile === 'function') loadProfile();
     }
@@ -88,7 +96,7 @@ export function setupEventListeners() {
         });
     });
 
-    // Formularios de Email (aunque ahora uses Google, los mantenemos)
+    // Formularios de Email
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -119,7 +127,7 @@ export function setupEventListeners() {
         });
     }
 
-    // BOTÓN GOOGLE (Importante: ya vinculado en auth.js, pero mantenemos el listener por si acaso)
+    // BOTÓN GOOGLE
     const btnGoogle = document.getElementById('btnGoogleLogin');
     if (btnGoogle) {
         btnGoogle.addEventListener('click', async () => {
@@ -153,21 +161,22 @@ export function setupEventListeners() {
     const btnAddProp = document.getElementById('btnAddProperty');
     if (btnAddProp) {
         btnAddProp.addEventListener('click', () => {
-            if (typeof openPropertyModal === 'function') openPropertyModal();
+            // Llamamos a la función importada de properties.js
+            openPropertyModal();
         });
     }
 
-    const closePropModal = document.getElementById('closePropertyModal');
-    if (closePropModal) {
-        closePropModal.addEventListener('click', () => {
-            if (typeof closePropertyModal === 'function') closePropertyModal();
+    const closePropModalBtn = document.getElementById('closePropertyModal');
+    if (closePropModalBtn) {
+        closePropModalBtn.addEventListener('click', () => {
+            closePropertyModal();
         });
     }
 
     const propForm = document.getElementById('propertyForm');
     if (propForm) {
         propForm.addEventListener('submit', (e) => {
-            if (typeof handlePropertySubmit === 'function') handlePropertySubmit(e);
+            handlePropertySubmit(e);
         });
     }
 
