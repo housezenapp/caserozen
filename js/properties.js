@@ -152,33 +152,37 @@ export function closePropertyModal() {
 // Guarda los datos en Supabase
 export async function handlePropertySubmit(e) {
     e.preventDefault();
+    
+    // Solo leemos los campos que hemos dejado en el HTML arriba
     const propertyId = document.getElementById('property-id').value;
     
     const propertyData = {
         casero_id: window.currentUser.id,
+        nombre: document.getElementById('property-name').value,
         direccion_completa: document.getElementById('property-address').value,
         referencia: document.getElementById('property-reference').value,
-        activa: document.getElementById('property-active').checked
+        activa: true
     };
 
     try {
-        let error;
+        let result;
         if (propertyId) {
-            const res = await window._supabase.from('propiedades').update(propertyData).eq('id', propertyId);
-            error = res.error;
+            // Si hay ID, actualizamos la fila existente
+            result = await window._supabase.from('propiedades').update(propertyData).eq('id', propertyId);
         } else {
-            const res = await window._supabase.from('propiedades').insert([propertyData]);
-            error = res.error;
+            // Si no hay ID, creamos una fila nueva
+            result = await window._supabase.from('propiedades').insert([propertyData]);
         }
 
-        if (error) throw error;
+        if (result.error) throw result.error;
         
         closePropertyModal();
-        loadProperties();
-        if (window.showToast) window.showToast('Propiedad guardada correctamente');
+        loadProperties(); // Refrescamos la lista para ver el cambio
+        if (window.showToast) window.showToast('¡Guardado con éxito!');
+        
     } catch (error) {
         console.error('Error al guardar:', error);
-        alert('No se pudo guardar la propiedad: ' + error.message);
+        alert('Fallo al guardar: ' + error.message);
     }
 }
 
