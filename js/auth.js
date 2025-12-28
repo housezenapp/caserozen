@@ -13,41 +13,40 @@ async function loginWithGoogle() {
     }
 }
 
-// 2. El "Portero": Se ejecuta cuando la web carga
+// 2. El "Portero" mejorado
 export async function initAuth() {
+    console.log("Detectando sesión...");
+    
     const btn = document.getElementById('btnGoogleLogin');
     if (btn) btn.onclick = loginWithGoogle;
 
-    // Escuchamos cambios de estado (Entrada/Salida)
-    window._supabase.auth.onAuthStateChange(async (event, session) => {
-        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+    // ESCUCHA ACTIVA: Para cambios de estado futuros
+    window._supabase.auth.onAuthStateChange((event, session) => {
+        console.log("Cambio de Auth Detectado:", event);
+        if (session) {
             window.currentUser = session.user;
-            
-            // PRIMERO mostramos la app para evitar que se quede colgado
             showApp();
-            
-            // DESPUÉS aseguramos el perfil sin bloquear la carga
-            ensureCaseroProfile(); 
-            
-            // Disparamos la carga de propiedades
-            const { loadProperties } = await import('./properties.js');
-            loadProperties();
-        } else if (event === 'SIGNED_OUT') {
+            ensureCaseroProfile();
+        } else {
             showLogin();
         }
     });
 
-    // Comprobación manual inicial por si la sesión ya existe
-    const { data: { session } } = await window._supabase.auth.getSession();
-    if (session) {
-        window.currentUser = session.user;
+    // EMPUJÓN MANUAL: Comprobamos la sesión inmediatamente
+    const { data, error } = await window._supabase.auth.getSession();
+    
+    if (data?.session) {
+        console.log("Sesión recuperada manualmente");
+        window.currentUser = data.session.user;
         showApp();
+        ensureCaseroProfile();
     } else {
+        console.log("No hay sesión activa, mostrando login");
         showLogin();
     }
 }
 
-// 3. Crear ficha de casero (Silencioso)
+// 3. Crear ficha de casero
 async function ensureCaseroProfile() {
     if (!window.currentUser) return;
     try {
@@ -57,11 +56,11 @@ async function ensureCaseroProfile() {
             nombre_completo: window.currentUser.user_metadata?.full_name || ''
         });
     } catch (e) {
-        console.warn("Error guardando perfil de casero:", e);
+        console.error("Error en perfil casero:", e);
     }
 }
 
-// 4. Control de pantalla
+// 4. Control de pantalla (Asegurando que los IDs existan)
 function showLogin() {
     const loginPage = document.getElementById('login-page');
     const appContent = document.getElementById('app-content');
@@ -72,12 +71,21 @@ function showLogin() {
 function showApp() {
     const loginPage = document.getElementById('login-page');
     const appContent = document.getElementById('app-content');
+    
     if (loginPage) loginPage.style.display = 'none';
     if (appContent) appContent.style.display = 'block';
+    
+    // Limpiar la URL del enlace largo (token) para que quede limpia
+    if (window.location.hash) {
+        window.history.replaceState(null, null, window.location.pathname);
+    }
     
     const name = window.currentUser?.user_metadata?.full_name || window.currentUser?.email;
     const display = document.getElementById('sidebar-username');
     if (display) display.textContent = name;
+
+    // Cargar propiedades
+    import('./properties.js').then(m => m.loadProperties());
 }
 
 window.logout = async () => {
