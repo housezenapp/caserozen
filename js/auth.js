@@ -1,108 +1,65 @@
-// --- FUNCIONES DE INTERFAZ ---
+
+    // 1. Control de Pantallas
 function showLogin() {
-    console.log("Mostrando pantalla de Login");
-    const loginPage = document.getElementById('login-page');
-    const appContent = document.getElementById('app-content');
-    if (loginPage) loginPage.style.display = 'flex';
-    if (appContent) appContent.style.display = 'none';
+    document.getElementById('login-page').style.display = 'flex';
+    document.getElementById('app-content').style.display = 'none';
 }
 
-function showApp(user) {
-    console.log("Mostrando pantalla de Aplicación");
-    const loginPage = document.getElementById('login-page');
-    const appContent = document.getElementById('app-content');
-    if (loginPage) loginPage.style.display = 'none';
-    if (appContent) appContent.style.display = 'block';
-
-    const name = user.user_metadata?.full_name || user.email;
+function showApp(userName) {
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    
     const display = document.getElementById('sidebar-username');
-    if (display) display.textContent = name;
+    if (display) display.textContent = userName;
 }
 
-// --- LOGICA DE BASE DE DATOS ---
-async function ensureCaseroProfile(user) {
-    if (!user) return;
-    try {
-        const { error } = await window._supabase.from('caseros').upsert({
-            id: user.id,
-            email: user.email,
-            nombre_completo: user.user_metadata?.full_name || ''
-        });
-        if (error) throw error;
-        console.log("✅ Perfil de casero sincronizado");
-    } catch (err) {
-        console.error("❌ Error en base de datos:", err.message);
-    }
-}
-
-// --- CARGA DE DATOS ---
-async function loadPropertiesData() {
-    try {
-        const { loadProperties } = await import('./properties.js');
-        if (loadProperties) await loadProperties();
-    } catch (e) {
-        console.warn("Aviso: No se pudieron cargar las propiedades aún.");
-    }
-}
-
-// --- FUNCIÓN PRINCIPAL DE AUTENTICACIÓN ---
+// 2. Lógica de Autenticación Simulada
 export async function initAuth() {
     const btn = document.getElementById('btnGoogleLogin');
+
+    // Datos del usuario ficticio para desarrollo
+    const fakeUser = {
+        id: '00000000-0000-0000-0000-000000000000', // ID genérico
+        email: 'casero_admin@caserozen.com',
+        user_metadata: { full_name: 'Casero Admin (Modo Test)' }
+    };
+
     if (btn) {
-        btn.onclick = async () => {
-            console.log("Iniciando OAuth...");
-            await window._supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: { redirectTo: window.location.origin + window.location.pathname }
-            });
+        btn.onclick = () => {
+            console.log("🔓 Saltando Google Login...");
+            
+            // Guardamos sesión ficticia en memoria y en disco local
+            window.currentUser = fakeUser;
+            localStorage.setItem('caserozen_bypass', 'true');
+            
+            arrancarApp();
         };
     }
 
-    // Proceso unificado de entrada
-    const handleEntry = async (session) => {
-        if (session) {
-            console.log("🔑 Sesión confirmada para:", session.user.email);
-            window.currentUser = session.user;
-
-            // Limpiar URL
-            if (window.location.hash.includes('access_token')) {
-                window.history.replaceState(null, null, window.location.pathname);
-            }
-
-            showApp(session.user);
-            await ensureCaseroProfile(session.user);
-            await loadPropertiesData();
-        } else {
-            showLogin();
+    async function arrancarApp() {
+        showApp(window.currentUser.user_metadata.full_name);
+        
+        // Carga de propiedades desde la base de datos real
+        try {
+            console.log("📦 Cargando propiedades de la DB...");
+            const { loadProperties } = await import('./properties.js');
+            if (loadProperties) await loadProperties();
+        } catch (err) {
+            console.error("⚠️ Error al cargar propiedades:", err);
         }
-    };
-
-    console.log("Buscando sesión existente...");
-    const { data: { session }, error } = await window._supabase.auth.getSession();
-
-    if (error) {
-        console.error("Error al recuperar sesión:", error);
-        showLogin();
-        return;
     }
 
-    if (session) {
-        await handleEntry(session);
+    // Comprobamos si ya habíamos entrado antes (para no loguear cada vez)
+    if (localStorage.getItem('caserozen_bypass') === 'true') {
+        window.currentUser = fakeUser;
+        arrancarApp();
     } else {
         showLogin();
     }
-
-    window._supabase.auth.onAuthStateChange(async (event, newSession) => {
-        console.log("Evento detectado:", event);
-        if (newSession && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-            await handleEntry(newSession);
-        } else if (event === 'SIGNED_OUT') {
-            showLogin();
-        }
-    });
 }
 
-window.logout = async () => {
-    await window._supabase.auth.signOut();
-    window.location.href = window.location.origin + window.location.pathname;
+// 3. Logout (Limpiar el bypass)
+window.logout = () => {
+    localStorage.removeItem('caserozen_bypass');
+    window.location.reload();
 };
