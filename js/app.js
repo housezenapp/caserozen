@@ -15,10 +15,10 @@ window._supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 2. ARRANQUE DE LA APLICACIÓN
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicializar Autenticación (Modo Bypass/Invitado configurado en auth.js)
+    // IMPORTANTE: Primero activamos el sistema de login
     initAuth();
     
-    // Inicializar Interfaz de Usuario y Eventos
+    // Luego activamos toda la interfaz
     initUI();
 });
 
@@ -59,13 +59,14 @@ function initUI() {
                 }
             }
 
+            // Cerrar menú en móviles tras clic
             if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('active')) {
                 toggleMenu();
             }
         };
     });
 
-    // --- GESTIÓN DE PROPIEDADES (Lo que faltaba) ---
+    // --- GESTIÓN DE PROPIEDADES ---
     
     // 1. Abrir modal
     const btnAdd = document.getElementById('btnAddProperty');
@@ -85,39 +86,22 @@ function initUI() {
         };
     }
 
-    // 3. Enviar Formulario (CRÍTICO)
+    // 3. Enviar Formulario (Guardar propiedad)
     const propertyForm = document.getElementById('propertyForm');
     if (propertyForm) {
         propertyForm.onsubmit = async (e) => {
-            console.log("Formulario detectado, guardando...");
+            console.log("Guardando propiedad...");
             await handlePropertySubmit(e);
         };
     }
-}
-    // --- Eventos del Módulo de Propiedades ---
-    const btnAdd = document.getElementById('btnAddProperty');
-if (btnAdd) {
-    btnAdd.onclick = (e) => {
-        e.preventDefault();
-        openPropertyModal();
-    };
-}
 
-    const btnCloseModal = document.getElementById('closePropertyModal');
-    if (btnCloseModal) {
-        btnCloseModal.onclick = closePropertyModal;
-    }
-
-    const propertyForm = document.getElementById('propertyForm');
-    if (propertyForm) {
-        propertyForm.onsubmit = handlePropertySubmit;
-    }
-
-    // --- Inicializar Logout ---
+    // --- BOTÓN CERRAR SESIÓN ---
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
         btnLogout.onclick = () => {
-            if (window.logout) window.logout();
+            // Limpiamos el bypass del invitado y recargamos
+            localStorage.removeItem('caserozen_bypass');
+            location.reload();
         };
     }
 }
