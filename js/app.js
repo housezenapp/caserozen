@@ -1,6 +1,7 @@
 import { CONFIG } from './config.js';
 import { initAuth } from './auth.js';
 import { setupEventListeners } from './ui.js';
+import { loadProperties } from './properties.js'; // <-- AÑADE ESTA LÍNEA
 
 // 1. CONEXIÓN GLOBAL: Creamos la conexión para que todos los archivos la usen
 // Usamos window._supabase para que sea accesible desde cualquier parte del código
