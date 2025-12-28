@@ -32,8 +32,10 @@ function initUI() {
 
     // --- Lógica del Menú Lateral (Sidebar) ---
     function toggleMenu() {
-        sidebar.classList.toggle('active');
-        overlay.classList.toggle('active');
+        if (sidebar && overlay) {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
     }
 
     if (menuBtn) menuBtn.onclick = toggleMenu;
@@ -43,31 +45,55 @@ function initUI() {
     navItems.forEach(item => {
         item.onclick = () => {
             const pageId = item.getAttribute('data-page');
-            if (!pageId) return; // Si es logout o no tiene destino
+            if (!pageId) return; 
 
-            // Actualizar estado visual de los botones del menú
             navItems.forEach(i => i.classList.remove('active'));
             item.classList.add('active');
 
-            // Cambiar de página
             pages.forEach(p => p.classList.remove('active'));
             const targetPage = document.getElementById(`page-${pageId}`);
             if (targetPage) {
                 targetPage.classList.add('active');
-                
-                // Carga específica según la sección
                 if (pageId === 'propiedades') {
                     loadProperties();
                 }
             }
 
-            // Cerrar menú en dispositivos móviles tras seleccionar
-            if (window.innerWidth <= 768 && sidebar.classList.contains('active')) {
+            if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('active')) {
                 toggleMenu();
             }
         };
     });
 
+    // --- GESTIÓN DE PROPIEDADES (Lo que faltaba) ---
+    
+    // 1. Abrir modal
+    const btnAdd = document.getElementById('btnAddProperty');
+    if (btnAdd) {
+        btnAdd.onclick = (e) => {
+            e.preventDefault();
+            openPropertyModal();
+        };
+    }
+
+    // 2. Cerrar modal
+    const btnClose = document.getElementById('closePropertyModal');
+    if (btnClose) {
+        btnClose.onclick = (e) => {
+            e.preventDefault();
+            closePropertyModal();
+        };
+    }
+
+    // 3. Enviar Formulario (CRÍTICO)
+    const propertyForm = document.getElementById('propertyForm');
+    if (propertyForm) {
+        propertyForm.onsubmit = async (e) => {
+            console.log("Formulario detectado, guardando...");
+            await handlePropertySubmit(e);
+        };
+    }
+}
     // --- Eventos del Módulo de Propiedades ---
     const btnAdd = document.getElementById('btnAddProperty');
 if (btnAdd) {
