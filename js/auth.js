@@ -1,80 +1,45 @@
-/**
- * js/auth.js - Gestión de Identidad y Sesión
- */
-import { showToast } from './ui.js';
+// js/auth.js
+export async function initAuth() {
+    console.log("🕵️ Vigilante de sesión activado...");
+
+    // Este es el bumerán: atrapa la sesión cuando vuelves de Google
+    window._supabase.auth.onAuthStateChange((event, session) => {
+        console.log("🔔 Cambio de estado detectado:", event);
+        
+        if (session) {
+            console.log("✅ Usuario detectado:", session.user.email);
+            window.currentUser = session.user;
+            
+            // Forzamos el cambio de pantalla
+            const loginPage = document.getElementById('login-page');
+            const appContent = document.getElementById('app-content');
+            
+            if (loginPage && appContent) {
+                loginPage.classList.add('hidden');
+                appContent.classList.remove('hidden');
+                console.log("🖥️ Pantalla cambiada a la APP");
+            } else {
+                console.error("❌ ERROR: No encuentro los IDs login-page o app-content en el HTML");
+            }
+        }
+    });
+
+    // Verificación inmediata por si ya estabas logueado
+    const { data: { session } } = await window._supabase.auth.getSession();
+    if (session) {
+        console.log("🏠 Sesión previa recuperada");
+        window.currentUser = session.user;
+    }
+}
 
 window.loginWithGoogle = async () => {
-    console.log("Iniciando Google Auth...");
-
+    console.log("🚀 Lanzando bumerán a Google...");
     const { error } = await window._supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin
+            // Usa la URL exacta que Google espera
+            redirectTo: 'https://caserav.github.io/caserozen/'
         }
     });
-
-    if (error) {
-        console.error("Error en el inicio de sesión:", error);
-
-        if (error.message.includes('provider') || error.code === 'validation_failed') {
-            showToast('Google no está habilitado. Actívalo en Supabase Dashboard.');
-            alert('ERROR: Google OAuth no está habilitado en tu proyecto de Supabase.\n\n' +
-                  'Para activarlo:\n' +
-                  '1. Ve a https://supabase.com/dashboard\n' +
-                  '2. Selecciona tu proyecto\n' +
-                  '3. Ve a Authentication > Providers\n' +
-                  '4. Activa Google y configura Client ID y Secret');
-        } else {
-            showToast('Error: ' + error.message);
-        }
-    }
+    if (error) console.error("❌ Error en la salida:", error.message);
 };
-
-window.logout = async () => {
-    console.log("Cerrando sesión...");
-    const { error } = await window._supabase.auth.signOut();
-    if (error) console.error("Error al cerrar sesión:", error.message);
-    location.reload();
-};
-
-// 2. Inicialización y escucha de cambios
-export async function initAuth() {
-    // Escuchar cambios de estado (Login/Logout)
-    window._supabase.auth.onAuthStateChange((event, session) => {
-        console.log("Evento de Auth detectado:", event);
-        if (session) {
-            window.currentUser = session.user;
-            toggleScreens(true);
-        } else {
-            window.currentUser = null;
-            toggleScreens(false);
-        }
-    });
-
-    // Verificar si ya hay una sesión al cargar la página
-    const { data: { session } } = await window._supabase.auth.getSession();
-    if (session) {
-        window.currentUser = session.user;
-        toggleScreens(true);
-    }
-}
-
-// 3. Control visual de pantallas (Login vs App)
-function toggleScreens(isLoggedIn) {
-    const loginPage = document.getElementById('login-page');
-    const appContent = document.getElementById('app-content');
-
-    if (isLoggedIn) {
-        if (loginPage) loginPage.classList.add('hidden');
-        if (appContent) appContent.classList.remove('hidden');
-        
-        // Actualizar datos de perfil si existen
-        const emailEl = document.getElementById('user-email');
-        if (emailEl && window.currentUser) {
-            emailEl.textContent = window.currentUser.email;
-        }
-    } else {
-        if (loginPage) loginPage.classList.remove('hidden');
-        if (appContent) appContent.classList.add('hidden');
-    }
-}
