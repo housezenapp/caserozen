@@ -1,5 +1,8 @@
+/**
+ * js/app.js - Orquestador Principal
+ */
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { initAuth } from './auth.js';
+import { initAuth, logout } from './auth.js';
 import { 
     loadProperties, 
     openPropertyModal, 
@@ -7,113 +10,73 @@ import {
     handlePropertySubmit 
 } from './properties.js';
 
-// 1. CONFIGURACIÓN DE SUPABASE
 const SUPABASE_URL = 'https://rplieisbxvruijvnxbya.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbGllaXNieHZydWlqdm54YnlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NDAwMDYsImV4cCI6MjA4MjQxNjAwNn0.7U6_U83D2iIqK_kY8tq-B7N_T3pS9B7y4K_o5Z7fI_o';
 
 window._supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 2. ARRANQUE DE LA APLICACIÓN
 document.addEventListener('DOMContentLoaded', () => {
-    // IMPORTANTE: Primero activamos el sistema de login
-    initAuth();
-    
-    // Luego activamos toda la interfaz
-    initUI();
+    initAuth(); // Inicializa Google Auth
+    initUI();   // Inicializa Menús y Botones
 });
 
-// 3. CONTROL DE INTERFAZ Y NAVEGACIÓN
 function initUI() {
-    const menuBtn = document.getElementById('menuBtn');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('menuOverlay');
-    const navItems = document.querySelectorAll('.nav-item');
-    const pages = document.querySelectorAll('.page');
+    const menuBtn = document.getElementById('menuBtn');
 
-    // --- Lógica del Menú Lateral (Sidebar) ---
-    function toggleMenu() {
-        if (sidebar && overlay) {
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-        }
-    }
+    // Navegación Sidebar
+    if (menuBtn) menuBtn.onclick = () => {
+        sidebar.classList.add('active');
+        overlay.classList.add('active');
+    };
 
-    if (menuBtn) menuBtn.onclick = toggleMenu;
-    if (overlay) overlay.onclick = toggleMenu;
+    if (overlay) overlay.onclick = () => {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+    };
 
-    // --- Navegación entre Secciones ---
-    navItems.forEach(item => {
+    document.querySelectorAll('.nav-item').forEach(item => {
         item.onclick = () => {
             const pageId = item.getAttribute('data-page');
-            if (!pageId) return; 
+            if (!pageId) return;
 
-            navItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
+            // Cambiar vista activa
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${pageId}`)?.classList.add('active');
+            
+            // Cargar datos si es necesario
+            if (pageId === 'propiedades') loadProperties();
 
-            pages.forEach(p => p.classList.remove('active'));
-            const targetPage = document.getElementById(`page-${pageId}`);
-            if (targetPage) {
-                targetPage.classList.add('active');
-                if (pageId === 'propiedades') {
-                    loadProperties();
-                }
-            }
-
-            // Cerrar menú en móviles tras clic
-            if (window.innerWidth <= 768 && sidebar && sidebar.classList.contains('active')) {
-                toggleMenu();
-            }
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
         };
     });
 
-    // --- GESTIÓN DE PROPIEDADES ---
-    
-    // 1. Abrir modal
+    // Eventos Propiedades
     const btnAdd = document.getElementById('btnAddProperty');
-    if (btnAdd) {
-        btnAdd.onclick = (e) => {
-            e.preventDefault();
-            openPropertyModal();
-        };
-    }
+    if (btnAdd) btnAdd.onclick = openPropertyModal;
 
-    // 2. Cerrar modal
     const btnClose = document.getElementById('closePropertyModal');
-    if (btnClose) {
-        btnClose.onclick = (e) => {
-            e.preventDefault();
-            closePropertyModal();
-        };
-    }
+    if (btnClose) btnClose.onclick = closePropertyModal;
 
-    // 3. Enviar Formulario (Guardar propiedad)
     const propertyForm = document.getElementById('propertyForm');
     if (propertyForm) {
-        propertyForm.onsubmit = async (e) => {
-            console.log("Guardando propiedad...");
-            await handlePropertySubmit(e);
-        };
+        propertyForm.onsubmit = handlePropertySubmit;
     }
 
-    // --- BOTÓN CERRAR SESIÓN ---
+    // Botón Logout
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
-        btnLogout.onclick = () => {
-            // Limpiamos el bypass del invitado y recargamos
-            localStorage.removeItem('caserozen_bypass');
-            location.reload();
-        };
+        btnLogout.onclick = logout;
     }
 }
 
-// 4. UTILIDADES GLOBALES (Toast/Notificaciones)
-window.showToast = (message) => {
-    const toast = document.getElementById('toast');
-    if (toast) {
-        toast.textContent = message;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3000);
-    } else {
-        alert(message);
+window.showToast = (msg) => {
+    const t = document.getElementById('toast');
+    if (t) {
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
     }
 };
