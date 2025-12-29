@@ -39,6 +39,10 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+.hidden {
+    display: none !important;
+}
+
 #toast {
     position: fixed;
     bottom: 30px;

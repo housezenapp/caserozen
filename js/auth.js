@@ -1,17 +1,33 @@
 /**
  * js/auth.js - Gestión de Identidad y Sesión
  */
+import { showToast } from './ui.js';
 
-// 1. Funciones globales para que ui.js y el HTML las encuentren
 window.loginWithGoogle = async () => {
     console.log("Iniciando Google Auth...");
+
     const { error } = await window._supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
             redirectTo: window.location.origin
         }
     });
-    if (error) console.error("Error en el inicio de sesión:", error.message);
+
+    if (error) {
+        console.error("Error en el inicio de sesión:", error);
+
+        if (error.message.includes('provider') || error.code === 'validation_failed') {
+            showToast('Google no está habilitado. Actívalo en Supabase Dashboard.');
+            alert('ERROR: Google OAuth no está habilitado en tu proyecto de Supabase.\n\n' +
+                  'Para activarlo:\n' +
+                  '1. Ve a https://supabase.com/dashboard\n' +
+                  '2. Selecciona tu proyecto\n' +
+                  '3. Ve a Authentication > Providers\n' +
+                  '4. Activa Google y configura Client ID y Secret');
+        } else {
+            showToast('Error: ' + error.message);
+        }
+    }
 };
 
 window.logout = async () => {
