@@ -1,6 +1,8 @@
 /**
- * js/properties.js - Gestión de Propiedades Vinculadas
+ * js/properties.js - Gestión de Datos de Propiedades
  */
+
+// 1. Generador de código único (Formato: 1234ABC)
 function generatePropertyCode() {
     const numbers = Math.floor(1000 + Math.random() * 9000);
     const letters = Array.from({length: 3}, () =>
@@ -9,108 +11,146 @@ function generatePropertyCode() {
     return `${numbers}${letters}`;
 }
 
-async function isCodeUnique(code) {
-    const { data } = await window._supabase
-        .from('propiedades')
-        .select('id')
-        .eq('referencia', code)
-        .maybeSingle();
-    return !data;
-}
-
+// 2. Carga de propiedades desde Supabase
 export async function loadProperties() {
     const container = document.getElementById('properties-container');
-    if (!container || !window.currentUser) return;
+    if (!container) return;
 
-    container.innerHTML = '<div class="loading-state">Cargando...</div>';
+    // Mostrar estado de carga
+    container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Cargando tus propiedades...</div>';
+
+    if (!window.currentUser) {
+        container.innerHTML = '<p class="error-msg">Debes iniciar sesión para ver tus propiedades.</p>';
+        return;
+    }
 
     try {
-        const { data: properties, error } = await window._supabase
+        const { data, error } = await window._supabase
             .from('propiedades')
             .select('*')
             .eq('casero_id', window.currentUser.id)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        renderProperties(properties || []);
+
+        renderProperties(data || []);
     } catch (error) {
-        console.error('Error cargando propiedades:', error);
+        console.error('Error al cargar propiedades:', error);
+        container.innerHTML = '<p class="error-msg">Error al conectar con la base de datos.</p>';
     }
 }
 
+// 3. Renderizado de las tarjetas de propiedad
 function renderProperties(properties) {
     const container = document.getElementById('properties-container');
+    
     if (properties.length === 0) {
-        container.innerHTML = '<p class="empty-list">No tienes propiedades registradas.</p>';
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-home"></i>
+                <p>Aún no has registrado ninguna propiedad.</p>
+                <small>Pulsa el botón "+" para empezar.</small>
+            </div>
+        `;
         return;
     }
 
     container.innerHTML = properties.map(prop => `
-        <div class="property-card" id="prop-${prop.id}">
-            <div class="property-header">
-                <div>
-                    <strong>${prop.nombre}</strong>
-                    <div class="addr">${prop.direccion_completa}</div>
+        <div class="property-card anim-fade-in">
+            <div class="property-info">
+                <h3>${prop.nombre}</h3>
+                <p><i class="fas fa-map-marker-alt"></i> ${prop.direccion_completa}</p>
+                <div class="property-code">
+                    <span>Código de vinculación:</span>
+                    <strong class="copy-code" title="Click para copiar">${prop.referencia}</strong>
                 </div>
-                <button class="delete-btn" onclick="deleteProperty('${prop.id}')">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
             </div>
-            <div class="property-code-box">
-                <small>Código Inquilino:</small>
-                <code>${prop.referencia}</code>
+            <div class="property-actions">
+                <button class="btn-icon delete" onclick="deleteProperty('${prop.id}')" title="Eliminar propiedad">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         </div>
     `).join('');
 }
 
+// 4. Lógica del Modal (Abrir/Cerrar)
 export async function openPropertyModal() {
     const modal = document.getElementById('property-form-modal');
     const refInput = document.getElementById('property-reference');
     if (!modal) return;
 
+    // Resetear formulario
     document.getElementById('propertyForm').reset();
-    modal.style.display = 'flex';
-
+    
+    // Generar código visual inmediato
     if (refInput) {
         refInput.value = 'Generando...';
-        let code = generatePropertyCode();
-        while (!(await isCodeUnique(code))) {
-            code = generatePropertyCode();
-        }
-        refInput.value = code;
+        const newCode = generatePropertyCode();
+        refInput.value = newCode;
     }
+
+    modal.style.display = 'flex';
+    modal.classList.add('active');
 }
 
 export function closePropertyModal() {
     const modal = document.getElementById('property-form-modal');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+    }
 }
 
+// 5. Guardado en Base de Datos
 export async function handlePropertySubmit(e) {
     e.preventDefault();
-    if (!window.currentUser) return alert("Sesión no válida");
+    
+    if (!window.currentUser) {
+        alert("Error: No se detectó una sesión activa de Google.");
+        return;
+    }
 
     const propertyData = {
-        casero_id: window.currentUser.id, // ID REAL DE GOOGLE
+        casero_id: window.currentUser.id, // ID Real de Google
         nombre: document.getElementById('property-name').value,
         direccion_completa: document.getElementById('property-address').value,
         referencia: document.getElementById('property-reference').value
     };
 
-    const { error } = await window._supabase.from('propiedades').insert([propertyData]);
+    try {
+        const { error } = await window._supabase
+            .from('propiedades')
+            .insert([propertyData]);
 
-    if (error) {
-        alert("Error al guardar: " + error.message);
-    } else {
+        if (error) throw error;
+
+        // Éxito
         closePropertyModal();
         loadProperties();
-        if (window.showToast) window.showToast("Propiedad guardada");
+        if (window.showToast) window.showToast("Propiedad registrada correctamente");
+
+    } catch (error) {
+        console.error('Error al guardar:', error);
+        alert("No se pudo guardar la propiedad. Verifica los permisos de la base de datos.");
     }
 }
 
+// 6. Función Global para borrar
 window.deleteProperty = async (id) => {
-    if (!confirm('¿Eliminar propiedad?')) return;
-    const { error } = await window._supabase.from('propiedades').delete().eq('id', id);
-    if (!error) loadProperties();
+    if (!confirm("¿Estás seguro de que quieres eliminar esta propiedad? Se perderán todos los datos vinculados.")) return;
+
+    try {
+        const { error } = await window._supabase
+            .from('propiedades')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        loadProperties();
+        if (window.showToast) window.showToast("Propiedad eliminada");
+    } catch (error) {
+        alert("Error al eliminar la propiedad.");
+    }
 };
