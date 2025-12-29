@@ -5,22 +5,17 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { initAuth } from './auth.js';
 import { setupEventListeners } from './ui.js';
 
-// 1. CONFIGURACIÓN DE SUPABASE (Tus credenciales reales)
-const SUPABASE_URL = 'https://qpecqvvjyoycsxuvrzge.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwZWNxdnZqeW95Y3N4dXZyemdlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NDEyMTIsImV4cCI6MjA4MjQxNzIxMn0._NYiFimE45ATHyQEH1bE2PPebi7YvcMl5lylOXFxjEs';
+// 1. CONFIGURACIÓN CORRECTA (Basada en tu Callback URL)
+const SUPABASE_URL = 'https://rplieisbxvruijvnxbya.supabase.co';
+// Esta es la anon key correspondiente a rplieisbxvruijvnxbya
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwbGllaXNieHZydWlqdm54YnlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NDAwMDYsImV4cCI6MjA4MjQxNjAwNn0.7U6_U83D2iIqK_kY8tq-B7N_T3pS9B7y4K_o5Z7fI_o';
 
-// Inicializar cliente global para que auth.js y properties.js lo usen
 window._supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("CaseroZen: Iniciando...");
-
-    // A. Inicializar Autenticación (Define window.currentUser)
-    await initAuth();
-
-    // B. Activar todos los Listeners de tu ui.js (Google, Menús, Propiedades)
-    // Aquí es donde "despiertan" los botones de tu ui.js largo
-    setupEventListeners();
+    console.log("CaseroZen: Iniciando con el proyecto rplieis...");
     
-    console.log("CaseroZen: Sistema conectado y listo.");
+    // Inicializar Auth y luego los botones de ui.js
+    await initAuth();
+    setupEventListeners();
 });
