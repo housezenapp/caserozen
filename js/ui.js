@@ -5,7 +5,7 @@ import {
     handlePropertySubmit 
 } from './properties.js';
 
-// Añadimos export para que app.js pueda activar los botones
+// --- UTILIDADES ---
 export function showToast(message) {
     const toast = document.getElementById('toast');
     if (!toast) return;
@@ -39,17 +39,14 @@ export function showPage(pageName) {
         navItem.classList.add('active');
     }
 
-    // Cerramos el menú tras elegir página
     const sidebar = document.getElementById('sidebar');
     if (sidebar && sidebar.classList.contains('active')) {
         toggleSidebar();
     }
 
-    // Llamadas a las funciones de carga de cada sección
     if (pageName === 'incidencias') {
         if (typeof loadIncidents === 'function') loadIncidents();
     } else if (pageName === 'propiedades') {
-        // Ahora cargamos las propiedades usando la función importada
         loadProperties();
     } else if (pageName === 'perfil') {
         if (typeof loadProfile === 'function') loadProfile();
@@ -59,11 +56,7 @@ export function showPage(pageName) {
 export function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
 }
 
@@ -71,14 +64,14 @@ export function formatDateShort(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
+        day: 'numeric', month: 'short', year: 'numeric'
     });
 }
 
-// Esta es la función principal que ejecutará app.js
+// --- CONFIGURACIÓN DE EVENTOS (setupEventListeners) ---
 export function setupEventListeners() {
+    console.log("Activando todos los manejadores de eventos...");
+
     // Tabs de Login/Registro
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.addEventListener('click', function() {
@@ -127,11 +120,16 @@ export function setupEventListeners() {
         });
     }
 
-    // BOTÓN GOOGLE
+    // --- BOTÓN GOOGLE (Conexión Crítica de Bolt) ---
     const btnGoogle = document.getElementById('btnGoogleLogin');
     if (btnGoogle) {
-        btnGoogle.addEventListener('click', async () => {
-            if (window.loginWithGoogle) await window.loginWithGoogle();
+        btnGoogle.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (window.loginWithGoogle) {
+                await window.loginWithGoogle();
+            } else {
+                console.error("Función window.loginWithGoogle no encontrada");
+            }
         });
     }
 
@@ -144,7 +142,8 @@ export function setupEventListeners() {
 
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
-        btnLogout.addEventListener('click', () => {
+        btnLogout.addEventListener('click', (e) => {
+            e.preventDefault();
             if (window.logout) window.logout();
         });
     }
@@ -160,24 +159,17 @@ export function setupEventListeners() {
     // PROPIEDADES Y PERFIL
     const btnAddProp = document.getElementById('btnAddProperty');
     if (btnAddProp) {
-        btnAddProp.addEventListener('click', () => {
-            // Llamamos a la función importada de properties.js
-            openPropertyModal();
-        });
+        btnAddProp.addEventListener('click', openPropertyModal);
     }
 
     const closePropModalBtn = document.getElementById('closePropertyModal');
     if (closePropModalBtn) {
-        closePropModalBtn.addEventListener('click', () => {
-            closePropertyModal();
-        });
+        closePropModalBtn.addEventListener('click', closePropertyModal);
     }
 
     const propForm = document.getElementById('propertyForm');
     if (propForm) {
-        propForm.addEventListener('submit', (e) => {
-            handlePropertySubmit(e);
-        });
+        propForm.addEventListener('submit', handlePropertySubmit);
     }
 
     const perfilForm = document.getElementById('perfilForm');
