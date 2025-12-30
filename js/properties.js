@@ -68,7 +68,7 @@ function renderProperties(properties) {
                 <p><i class="fas fa-map-marker-alt"></i> ${prop.direccion_completa}</p>
                 <div class="property-code">
                     <span>Código de vinculación:</span>
-                    <strong class="copy-code" title="Click para copiar">${prop.codigo_vinculacion || prop.referencia}</strong>
+                    <strong class="copy-code" title="Click para copiar">${prop.codigo_vinculacion || prop.id}</strong>
                 </div>
             </div>
             <div class="property-actions">
@@ -120,11 +120,11 @@ export async function handlePropertySubmit(e) {
     const codigoVinculacion = document.getElementById('property-reference').value;
 
     const propertyData = {
+        id: codigoVinculacion, // El código de vinculación es el ID único
         perfil_id: window.currentUser.id, // ID del usuario autenticado
         nombre_propiedad: document.getElementById('property-name').value,
         direccion_completa: document.getElementById('property-address').value,
-        codigo_vinculacion: codigoVinculacion,
-        referencia: codigoVinculacion // También guardar en referencia por compatibilidad
+        codigo_vinculacion: codigoVinculacion
     };
 
     console.log('💾 Guardando propiedad:', propertyData);
