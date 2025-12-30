@@ -4,6 +4,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { initAuth } from './auth.js';
 import { setupEventListeners } from './ui.js';
+import './profile.js'; // Importar funciones de perfil
 
 // 1. CONFIGURACIÓN CORRECTA (Basada en tu Callback URL)
 const SUPABASE_URL = 'https://ebkubuxrzgmenmcjyima.supabase.co';
@@ -13,9 +14,11 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 window._supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("CaseroZen: Iniciando con el proyecto rplieis...");
-    
+    console.log("✨ CaseroZen: Iniciando aplicación...");
+
     // Inicializar Auth y luego los botones de ui.js
     await initAuth();
     setupEventListeners();
+
+    console.log("✅ Aplicación inicializada correctamente");
 });
