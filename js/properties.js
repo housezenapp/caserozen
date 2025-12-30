@@ -25,17 +25,23 @@ export async function loadProperties() {
     }
 
     try {
+        console.log('🏠 Cargando propiedades para el usuario:', window.currentUser.id);
+
         const { data, error } = await window._supabase
             .from('propiedades')
             .select('*')
-            .eq('casero_id', window.currentUser.id)
+            .eq('perfil_id', window.currentUser.id)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error al cargar propiedades:', error);
+            throw error;
+        }
 
+        console.log('✅ Propiedades cargadas:', data);
         renderProperties(data || []);
     } catch (error) {
-        console.error('Error al cargar propiedades:', error);
+        console.error('❌ Error al cargar propiedades:', error);
         container.innerHTML = '<p class="error-msg">Error al conectar con la base de datos.</p>';
     }
 }
@@ -58,11 +64,11 @@ function renderProperties(properties) {
     container.innerHTML = properties.map(prop => `
         <div class="property-card anim-fade-in">
             <div class="property-info">
-                <h3>${prop.nombre}</h3>
+                <h3>${prop.nombre_propiedad || 'Sin nombre'}</h3>
                 <p><i class="fas fa-map-marker-alt"></i> ${prop.direccion_completa}</p>
                 <div class="property-code">
                     <span>Código de vinculación:</span>
-                    <strong class="copy-code" title="Click para copiar">${prop.referencia}</strong>
+                    <strong class="copy-code" title="Click para copiar">${prop.codigo_vinculacion || prop.referencia}</strong>
                 </div>
             </div>
             <div class="property-actions">
@@ -105,25 +111,36 @@ export function closePropertyModal() {
 // 5. Guardado en Base de Datos
 export async function handlePropertySubmit(e) {
     e.preventDefault();
-    
+
     if (!window.currentUser) {
         alert("Error: No se detectó una sesión activa de Google.");
         return;
     }
 
+    const codigoVinculacion = document.getElementById('property-reference').value;
+
     const propertyData = {
-        casero_id: window.currentUser.id, // ID Real de Google
-        nombre: document.getElementById('property-name').value,
+        perfil_id: window.currentUser.id, // ID del usuario autenticado
+        nombre_propiedad: document.getElementById('property-name').value,
         direccion_completa: document.getElementById('property-address').value,
-        referencia: document.getElementById('property-reference').value
+        codigo_vinculacion: codigoVinculacion,
+        referencia: codigoVinculacion // También guardar en referencia por compatibilidad
     };
 
-    try {
-        const { error } = await window._supabase
-            .from('propiedades')
-            .insert([propertyData]);
+    console.log('💾 Guardando propiedad:', propertyData);
 
-        if (error) throw error;
+    try {
+        const { data, error } = await window._supabase
+            .from('propiedades')
+            .insert([propertyData])
+            .select();
+
+        if (error) {
+            console.error('❌ Error al guardar propiedad:', error);
+            throw error;
+        }
+
+        console.log('✅ Propiedad guardada correctamente:', data);
 
         // Éxito
         closePropertyModal();
@@ -131,8 +148,9 @@ export async function handlePropertySubmit(e) {
         if (window.showToast) window.showToast("Propiedad registrada correctamente");
 
     } catch (error) {
-        console.error('Error al guardar:', error);
-        alert("No se pudo guardar la propiedad. Verifica los permisos de la base de datos.");
+        console.error('❌ Error completo al guardar:', error);
+        console.error('📋 Detalles:', error.message, error.details, error.hint);
+        alert("No se pudo guardar la propiedad: " + (error.message || 'Error desconocido'));
     }
 }
 
