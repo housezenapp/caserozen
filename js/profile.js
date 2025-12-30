@@ -1,6 +1,6 @@
 async function loadProfile() {
     try {
-        const { data: casero, error } = await _supabase
+        const { data: perfil, error } = await _supabase
             .from('perfiles')
             .select('*')
             .eq('id', currentUser.id)
@@ -8,12 +8,10 @@ async function loadProfile() {
 
         if (error && error.code !== 'PGRST116') throw error;
 
-        if (casero) {
-            document.getElementById('perfil-nombre').value = casero.nombre_completo || '';
-            document.getElementById('perfil-dni').value = casero.dni_cif || '';
-            document.getElementById('perfil-telefono').value = casero.telefono_principal || '';
-            document.getElementById('perfil-emergencia').value = casero.telefono_emergencia || '';
-            document.getElementById('perfil-direccion').value = casero.direccion || '';
+        if (perfil) {
+            document.getElementById('perfil-nombre').value = perfil.nombre || '';
+            document.getElementById('perfil-telefono').value = perfil.telefono || '';
+            document.getElementById('perfil-direccion').value = perfil.direccion || '';
         }
 
         document.getElementById('perfil-email').value = currentUser.email || '';
@@ -35,11 +33,9 @@ async function handleProfileSubmit(e) {
 
     const profileData = {
         id: currentUser.id,
-        nombre_completo: document.getElementById('perfil-nombre').value,
-        dni_cif: document.getElementById('perfil-dni').value || null,
+        nombre: document.getElementById('perfil-nombre').value,
         email: currentUser.email,
-        telefono_principal: document.getElementById('perfil-telefono').value || null,
-        telefono_emergencia: document.getElementById('perfil-emergencia').value || null,
+        telefono: document.getElementById('perfil-telefono').value || null,
         direccion: document.getElementById('perfil-direccion').value || null
     };
 
