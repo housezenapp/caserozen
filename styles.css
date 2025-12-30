@@ -168,10 +168,6 @@ body {
     font-size: 1.2rem;
 }
 
-#app-content {
-    display: none;
-}
-
 .top-bar {
     position: fixed;
     top: 0;

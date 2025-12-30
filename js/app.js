@@ -6,9 +6,9 @@ import { initAuth } from './auth.js';
 import { setupEventListeners } from './ui.js';
 
 // 1. CONFIGURACIÓN CORRECTA (Basada en tu Callback URL)
-const SUPABASE_URL = 'https://rplieisbxvruijvnxbya.supabase.co';
-// Esta es la anon key correspondiente a rplieisbxvruijvnxbya
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwbGllaXNieHZydWlqdm54YnlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NDAwMDYsImV4cCI6MjA4MjQxNjAwNn0.7U6_U83D2iIqK_kY8tq-B7N_T3pS9B7y4K_o5Z7fI_o';
+const SUPABASE_URL = 'https://ebkubuxrzgmenmcjyima.supabase.co';
+// Esta es la anon key correspondiente a ebkubuxrzgmenmcjyima
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVia3VidXhyemdtZW5tY2p5aW1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5OTExOTksImV4cCI6MjA4MjU2NzE5OX0.TwwlcvGnk_17IEtii1JxFBYVCUY6u_8ICo-rP6GjhYM';
 
 window._supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 

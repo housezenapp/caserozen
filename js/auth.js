@@ -38,7 +38,7 @@ window.loginWithGoogle = async () => {
         provider: 'google',
         options: {
             // Usa la URL exacta que Google espera
-            redirectTo: 'https://caserav.github.io/caserozen/'
+            redirectTo: 'https://housezenapp.github.io/caserozen/'
         }
     });
     if (error) console.error("❌ Error en la salida:", error.message);
