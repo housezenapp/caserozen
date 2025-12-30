@@ -37,7 +37,7 @@ export async function initAuth() {
 }
 
 // Actualiza el nombre del usuario en la interfaz
-function updateUserDisplay(user) {
+async function updateUserDisplay(user) {
     // Actualizar nombre en el sidebar (debajo de "Sesión Activa")
     const sidebarUsername = document.getElementById('sidebar-username');
     if (sidebarUsername) {
@@ -51,6 +51,59 @@ function updateUserDisplay(user) {
     if (perfilEmail) {
         perfilEmail.value = user.email;
         console.log("📧 Email actualizado en perfil:", user.email);
+    }
+
+    // Crear o actualizar registro en la tabla caseros
+    await createOrUpdateCaseroProfile(user);
+}
+
+// Crea o actualiza el perfil del casero en la base de datos
+async function createOrUpdateCaseroProfile(user) {
+    try {
+        // Verificar si ya existe un perfil
+        const { data: existing, error: selectError } = await window._supabase
+            .from('perfiles')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (selectError && selectError.code !== 'PGRST116') {
+            console.error("❌ Error al verificar perfil:", selectError);
+            return;
+        }
+
+        const caseroData = {
+            id: user.id,
+            email: user.email,
+            nombre_completo: user.user_metadata?.full_name || null
+        };
+
+        if (existing) {
+            // Actualizar perfil existente
+            const { error: updateError } = await window._supabase
+                .from('perfiles')
+                .update(caseroData)
+                .eq('id', user.id);
+
+            if (updateError) {
+                console.error("❌ Error al actualizar perfil:", updateError);
+            } else {
+                console.log("✅ Perfil de casero actualizado");
+            }
+        } else {
+            // Crear nuevo perfil
+            const { error: insertError } = await window._supabase
+                .from('perfiles')
+                .insert([caseroData]);
+
+            if (insertError) {
+                console.error("❌ Error al crear perfil:", insertError);
+            } else {
+                console.log("✅ Perfil de casero creado");
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error en createOrUpdateCaseroProfile:", error);
     }
 }
 

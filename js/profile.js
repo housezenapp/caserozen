@@ -1,7 +1,7 @@
 async function loadProfile() {
     try {
         const { data: casero, error } = await _supabase
-            .from('caseros')
+            .from('perfiles')
             .select('*')
             .eq('id', currentUser.id)
             .maybeSingle();
@@ -47,7 +47,7 @@ async function handleProfileSubmit(e) {
 
     try {
         const { data: existing, error: selectError } = await _supabase
-            .from('caseros')
+            .from('perfiles')
             .select('id')
             .eq('id', currentUser.id)
             .maybeSingle();
@@ -58,7 +58,7 @@ async function handleProfileSubmit(e) {
         if (existing) {
             console.log('Actualizando perfil existente...');
             const { data, error } = await _supabase
-                .from('caseros')
+                .from('perfiles')
                 .update(profileData)
                 .eq('id', currentUser.id)
                 .select();
@@ -68,7 +68,7 @@ async function handleProfileSubmit(e) {
         } else {
             console.log('Insertando nuevo perfil...');
             const { data, error } = await _supabase
-                .from('caseros')
+                .from('perfiles')
                 .insert([profileData])
                 .select();
 
