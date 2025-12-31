@@ -78,7 +78,7 @@ async function createOrUpdateCaseroProfile(user) {
         const perfilData = {
             id: user.id,
             email: user.email,
-            nombre: user.user_metadata?.full_name || null
+            nombre: user.user_metadata?.full_name || null,
             rol: 'casero' // <--- LÍNEA AÑADIDA
             
         };
