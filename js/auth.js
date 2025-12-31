@@ -79,6 +79,8 @@ async function createOrUpdateCaseroProfile(user) {
             id: user.id,
             email: user.email,
             nombre: user.user_metadata?.full_name || null
+            rol: 'casero' // <--- LÍNEA AÑADIDA
+            
         };
 
         console.log("📦 Datos a guardar:", perfilData);
@@ -88,7 +90,7 @@ async function createOrUpdateCaseroProfile(user) {
             // Actualizar perfil existente
             const { error: updateError } = await window._supabase
                 .from('perfiles')
-                .update({ email: perfilData.email, nombre: perfilData.nombre })
+                .update({ email: perfilData.email, nombre: perfilData.nombre, rol: perfilData.rol })
                 .eq('id', user.id);
 
             if (updateError) {
