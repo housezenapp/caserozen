@@ -1,3 +1,7 @@
+/**
+ * js/incidents.js - Gestión de Incidencias para CaseroZen
+ */
+
 async function loadIncidents() {
     const container = document.getElementById('incidents-logistics-container');
     container.innerHTML = `
@@ -10,7 +14,8 @@ async function loadIncidents() {
     try {
         let incidents = [];
 
-        if (isAdmin) {
+        // isAdmin viene definido globalmente o por el rol del perfil
+        if (window.isAdmin) {
             const { data } = await _supabase
                 .from('incidencias')
                 .select('*')
@@ -18,37 +23,47 @@ async function loadIncidents() {
 
             incidents = data || [];
         } else {
-            const { data } = await _supabase
-                .from('incidencias')
-                .select(`
-                    *,
-                    propiedades!inner (
-                        id,
-                        casero_id
-                    )
-                `)
-                .eq('propiedades.casero_id', currentUser.id)
-                .order('created_at', { ascending: false });
+            // --- LÓGICA DE VINCULACIÓN POR PERFIL_PROPIEDADES ---
+            // 1. Buscamos los inquilinos asociados a este casero
+            const { data: vinculos, error: vError } = await _supabase
+                .from('perfil_propiedades')
+                .select('id_perfil_inquilino')
+                .eq('id_perfil_casero', currentUser.id);
 
-            if (!data || data.length === 0) {
+            if (vError) throw vError;
+
+            // Extraemos los IDs de los inquilinos
+            const listaInquilinos = vinculos?.map(v => v.id_perfil_inquilino) || [];
+
+            if (listaInquilinos.length === 0) {
+                // Si no hay vínculos, reseteamos contadores y avisamos
                 document.getElementById('stat-urgent').textContent = '0';
                 document.getElementById('stat-pending').textContent = '0';
                 document.getElementById('stat-progress').textContent = '0';
                 container.innerHTML = `
                     <div class="empty-state">
-                        <i class="fa-solid fa-home"></i>
-                        <div class="empty-state-text">No hay incidencias vinculadas a tus propiedades</div>
+                        <i class="fa-solid fa-user-slash"></i>
+                        <div class="empty-state-text">No tienes inquilinos vinculados todavía</div>
                     </div>
                 `;
                 return;
             }
 
-            incidents = data;
+            // 2. Cargamos las incidencias que pertenezcan a esos inquilinos
+            const { data, error } = await _supabase
+                .from('incidencias')
+                .select('*')
+                .in('user_id', listaInquilinos)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            incidents = data || [];
         }
 
+        // Estadísticas
         const urgentes = incidents.filter(i => i.urgencia === 'alta' && i.estado !== 'Solucionado').length;
         const pendientes = incidents.filter(i => i.estado === 'Reportada').length;
-        const enProceso = incidents.filter(i =>
+        const enProceso = incidents.filter(i => 
             i.estado !== 'Reportada' && i.estado !== 'Solucionado'
         ).length;
 
@@ -56,6 +71,7 @@ async function loadIncidents() {
         document.getElementById('stat-pending').textContent = pendientes;
         document.getElementById('stat-progress').textContent = enProceso;
 
+        // Filtros de UI
         const filterEstado = document.getElementById('filter-estado').value;
         const filterUrgencia = document.getElementById('filter-urgencia').value;
 
@@ -73,7 +89,7 @@ async function loadIncidents() {
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-filter"></i>
-                    <div class="empty-state-text">No se encontraron incidencias con estos filtros</div>
+                    <div class="empty-state-text">No hay incidencias con estos filtros</div>
                 </div>
             `;
             return;
@@ -93,21 +109,17 @@ function renderIncidentsList(incidents) {
     const html = incidents.map(inc => `
         <div class="incident-card urgency-${inc.urgencia}" onclick="showIncidentDetail('${inc.id}')">
             <div class="incident-header">
-                <div class="incident-title">${inc.titulo}</div>
+                <div class="incident-title">${inc.titulo || 'Sin Título'}</div>
                 <span class="status-badge status-${inc.estado.replace(/ /g, '-')}" data-estado="${inc.estado}">${inc.estado}</span>
             </div>
             <div class="incident-info">
                 <div class="incident-info-row">
                     <i class="fa-solid fa-user"></i>
-                    <span>${inc.nombre_inquilino || 'Sin nombre'}</span>
+                    <span>${inc.nombre_inquilino || 'Inquilino'}</span>
                 </div>
                 <div class="incident-info-row">
                     <i class="fa-solid fa-location-dot"></i>
                     <span>${inc.direccion || 'Sin dirección'}</span>
-                </div>
-                <div class="incident-info-row">
-                    <i class="fa-solid fa-tag"></i>
-                    <span>${inc.categoria}</span>
                 </div>
             </div>
             <div class="incident-footer">
@@ -123,475 +135,137 @@ function renderIncidentsList(incidents) {
 async function showIncidentDetail(incidentId) {
     const modal = document.getElementById('incident-detail-modal');
     const content = document.getElementById('incident-detail-content');
-
-    content.innerHTML = `
-        <div class="loading-state">
-            <i class="fa-solid fa-spinner fa-spin"></i>
-        </div>
-    `;
-
+    content.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i></div>`;
     modal.classList.add('active');
 
     try {
-        const { data: incident } = await _supabase
-            .from('incidencias')
-            .select('*')
-            .eq('id', incidentId)
-            .single();
+        const { data: incident } = await _supabase.from('incidencias').select('*').eq('id', incidentId).single();
+        if (!incident) return;
 
-        if (!incident) {
-            showToast('Incidencia no encontrada');
-            return;
-        }
-
-        const { data: historial } = await _supabase
-            .from('historial_estados')
-            .select('*')
-            .eq('incidencia_id', incidentId)
-            .order('created_at', { ascending: true });
-
-        const { data: tecnicos } = await _supabase
-            .from('tecnicos')
-            .select('*')
-            .eq('casero_id', currentUser.id)
-            .eq('activo', true);
+        const { data: historial } = await _supabase.from('historial_estados').select('*').eq('incidencia_id', incidentId).order('created_at', { ascending: true });
+        const { data: tecnicos } = await _supabase.from('tecnicos').select('*').eq('casero_id', currentUser.id).eq('activo', true);
 
         renderIncidentDetail(incident, historial, tecnicos);
-
     } catch (error) {
-        console.error('Error loading incident detail:', error);
-        showToast('Error al cargar el detalle');
+        console.error('Error detail:', error);
     }
 }
 
 function renderIncidentDetail(incident, historial, tecnicos) {
     const content = document.getElementById('incident-detail-content');
-
-    const estados = [
-        'Reportada',
-        'Asignación de Pago',
-        'En manos del Técnico',
-        'Reparación en Curso',
-        'Presupuesto Pendiente',
-        'Solucionado'
-    ];
-
+    const estados = ['Reportada', 'Asignación de Pago', 'En manos del Técnico', 'Reparación en Curso', 'Presupuesto Pendiente', 'Solucionado'];
     const currentStateIndex = estados.indexOf(incident.estado);
 
     const stepperHtml = estados.map((estado, index) => {
-        const isCompleted = index < currentStateIndex;
-        const isActive = index === currentStateIndex;
-        const stepClass = isCompleted ? 'completed' : (isActive ? 'active' : '');
-
+        const stepClass = index < currentStateIndex ? 'completed' : (index === currentStateIndex ? 'active' : '');
         const historialItem = historial?.find(h => h.estado_nuevo === estado);
-        const timeDisplay = historialItem
-            ? formatDate(historialItem.created_at)
-            : isActive
-                ? 'En curso...'
-                : 'Pendiente';
-
         return `
             <div class="stepper-step ${stepClass}">
-                <div class="step-icon">
-                    ${isCompleted ? '<i class="fa-solid fa-check"></i>' : (index + 1)}
-                </div>
+                <div class="step-icon">${index < currentStateIndex ? '<i class="fa-solid fa-check"></i>' : (index + 1)}</div>
                 <div class="step-content">
                     <div class="step-title">${estado}</div>
-                    <div class="step-time">${timeDisplay}</div>
-                    ${historialItem && historialItem.notas ? `<div class="step-notes">${historialItem.notas}</div>` : ''}
+                    <div class="step-time">${historialItem ? formatDate(historialItem.created_at) : (index === currentStateIndex ? 'En curso...' : 'Pendiente')}</div>
                 </div>
-            </div>
-        `;
+            </div>`;
     }).join('');
 
-    const tecnicoOptions = tecnicos && tecnicos.length > 0
-        ? tecnicos.map(t => `<option value="${t.id}" ${incident.tecnico_id === t.id ? 'selected' : ''}>${t.nombre} - ${t.especialidad}</option>`).join('')
-        : '<option value="">No hay técnicos disponibles</option>';
+    const tecnicoOptions = tecnicos?.map(t => `<option value="${t.id}" ${incident.tecnico_id === t.id ? 'selected' : ''}>${t.nombre}</option>`).join('') || '';
 
-    const html = `
+    content.innerHTML = `
         <div style="padding: 25px;">
             <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">Inquilino</div>
-                    <div class="info-value">${incident.nombre_inquilino || 'Sin nombre'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Email</div>
-                    <div class="info-value">${incident.email_inquilino || 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Teléfono</div>
-                    <div class="info-value">${incident.telefono || 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Dirección</div>
-                    <div class="info-value">${incident.direccion || 'N/A'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Categoría</div>
-                    <div class="info-value">${incident.categoria}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Urgencia</div>
-                    <div class="info-value">
-                        <span class="urgency-badge urgency-${incident.urgencia}">${incident.urgencia.toUpperCase()}</span>
-                    </div>
-                </div>
+                <div class="info-item"><div class="info-label">Inquilino</div><div class="info-value">${incident.nombre_inquilino || 'Sin nombre'}</div></div>
+                <div class="info-item"><div class="info-label">Teléfono</div><div class="info-value">${incident.telefono || 'N/A'}</div></div>
+                <div class="info-item"><div class="info-label">Dirección</div><div class="info-value">${incident.direccion || 'N/A'}</div></div>
+                <div class="info-item"><div class="info-label">Urgencia</div><div class="info-value"><span class="urgency-badge urgency-${incident.urgencia}">${incident.urgencia.toUpperCase()}</span></div></div>
             </div>
-
-            <div style="margin: 20px 0;">
-                <h4 style="font-weight: 800; margin-bottom: 10px; color: var(--text-light); font-size: 0.85rem; text-transform: uppercase;">Descripción</h4>
-                <p style="color: var(--text-main); line-height: 1.6;">${incident.descripcion}</p>
-            </div>
-
-            ${incident.notas_casero ? `
-                <div style="margin: 20px 0;">
-                    <h4 style="font-weight: 800; margin-bottom: 10px; color: var(--text-light); font-size: 0.85rem; text-transform: uppercase;">Notas del Casero</h4>
-                    <p style="color: var(--text-main); line-height: 1.6; background: var(--primary-light); padding: 12px; border-radius: var(--radius-md);">${incident.notas_casero}</p>
-                </div>
-            ` : ''}
-
-            <div style="margin: 30px 0;">
-                <h4 style="font-weight: 800; margin-bottom: 20px; color: var(--secondary); font-size: 1.1rem;">Trazabilidad de la Incidencia</h4>
-                <div class="stepper">
-                    ${stepperHtml}
-                </div>
-            </div>
+            <div style="margin: 20px 0;"><h4>Descripción</h4><p>${incident.descripcion}</p></div>
+            <div class="stepper" style="margin: 30px 0;">${stepperHtml}</div>
 
             ${incident.estado === 'Reportada' ? `
                 <div class="action-section">
                     <h4>Asignar Responsable de Pago</h4>
-                    <div class="action-buttons">
-                        <button class="action-btn primary" onclick="asignarResponsable('${incident.id}', 'Casero')">
-                            <i class="fa-solid fa-user-tie"></i> Casero
-                        </button>
-                        <button class="action-btn primary" onclick="asignarResponsable('${incident.id}', 'Inquilino')">
-                            <i class="fa-solid fa-user"></i> Inquilino
-                        </button>
-                        <button class="action-btn primary" onclick="asignarResponsable('${incident.id}', 'Seguro')">
-                            <i class="fa-solid fa-shield"></i> Seguro
-                        </button>
-                    </div>
-                </div>
-            ` : ''}
+                    <button class="action-btn primary" onclick="asignarResponsable('${incident.id}', 'Casero')">Casero</button>
+                    <button class="action-btn primary" onclick="asignarResponsable('${incident.id}', 'Inquilino')">Inquilino</button>
+                </div>` : ''}
 
-            ${incident.estado === 'Asignación de Pago' && incident.responsable_pago ? `
+            ${incident.estado === 'Asignación de Pago' ? `
                 <div class="action-section">
-                    <h4>Responsable: ${incident.responsable_pago}</h4>
-                    <div style="margin-top: 15px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem;">Asignar Técnico</label>
-                        <select id="tecnico-select" style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-md); margin-bottom: 10px;">
-                            <option value="">Selecciona un técnico...</option>
-                            ${tecnicoOptions}
-                        </select>
-                        <button class="action-btn success" onclick="asignarTecnico('${incident.id}')">
-                            <i class="fa-solid fa-toolbox"></i> Asignar y Avanzar
-                        </button>
-                    </div>
-                </div>
-            ` : ''}
+                    <h4>Asignar Técnico</h4>
+                    <select id="tecnico-select" style="width:100%; padding:10px; margin-bottom:10px;"><option value="">Selecciona técnico...</option>${tecnicoOptions}</select>
+                    <button class="action-btn success" onclick="asignarTecnico('${incident.id}')">Asignar y Avanzar</button>
+                </div>` : ''}
 
             ${incident.estado === 'En manos del Técnico' ? `
-                <div class="action-section">
-                    <h4>Técnico Asignado</h4>
-                    <div class="action-buttons">
-                        <button class="action-btn primary" onclick="avanzarEstado('${incident.id}', 'Reparación en Curso')">
-                            <i class="fa-solid fa-gear"></i> Iniciar Reparación
-                        </button>
-                    </div>
-                </div>
-            ` : ''}
+                <button class="action-btn primary" onclick="avanzarEstado('${incident.id}', 'Reparación en Curso')">Iniciar Reparación</button>` : ''}
 
             ${incident.estado === 'Reparación en Curso' ? `
                 <div class="action-section">
-                    <h4>Solicitar Presupuesto</h4>
-                    <div style="margin-top: 15px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem;">Monto (€)</label>
-                        <input type="number" id="presupuesto-monto" style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-md); margin-bottom: 10px;" placeholder="0.00" step="0.01">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem;">Descripción</label>
-                        <textarea id="presupuesto-descripcion" style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-md); margin-bottom: 10px; min-height: 80px;" placeholder="Descripción del presupuesto..."></textarea>
-                        <button class="action-btn primary" onclick="enviarPresupuesto('${incident.id}')">
-                            <i class="fa-solid fa-file-invoice-dollar"></i> Enviar Presupuesto
-                        </button>
-                    </div>
-                </div>
-            ` : ''}
+                    <h4>Enviar Presupuesto</h4>
+                    <input type="number" id="presupuesto-monto" placeholder="Monto €" style="width:100%; margin-bottom:10px;">
+                    <button class="action-btn primary" onclick="enviarPresupuesto('${incident.id}')">Enviar</button>
+                </div>` : ''}
 
-            ${incident.estado === 'Presupuesto Pendiente' && incident.presupuesto_estado === 'pendiente' ? `
-                <div class="action-section">
-                    <h4>Presupuesto Enviado</h4>
-                    <div class="info-grid" style="margin: 15px 0;">
-                        <div class="info-item">
-                            <div class="info-label">Monto</div>
-                            <div class="info-value">${incident.presupuesto_monto} €</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Estado</div>
-                            <div class="info-value">Pendiente de aceptación</div>
-                        </div>
-                    </div>
-                    ${incident.presupuesto_descripcion ? `<p style="color: var(--text-main); margin-bottom: 15px;">${incident.presupuesto_descripcion}</p>` : ''}
-                    <div class="action-buttons">
-                        <button class="action-btn success" onclick="gestionarPresupuesto('${incident.id}', 'aceptado')">
-                            <i class="fa-solid fa-check"></i> Aceptar
-                        </button>
-                        <button class="action-btn danger" onclick="gestionarPresupuesto('${incident.id}', 'rechazado')">
-                            <i class="fa-solid fa-times"></i> Rechazar
-                        </button>
-                    </div>
-                </div>
-            ` : ''}
+            ${incident.estado === 'Presupuesto Pendiente' ? `
+                <div class="action-buttons">
+                    <button class="action-btn success" onclick="gestionarPresupuesto('${incident.id}', 'aceptado')">Aceptar</button>
+                    <button class="action-btn danger" onclick="gestionarPresupuesto('${incident.id}', 'rechazado')">Rechazar</button>
+                </div>` : ''}
 
             ${incident.presupuesto_estado === 'aceptado' && incident.estado !== 'Solucionado' ? `
-                <div class="action-section">
-                    <h4>Presupuesto Aceptado</h4>
-                    <p style="color: var(--success); font-weight: 700; margin-bottom: 15px;">Presupuesto de ${incident.presupuesto_monto}€ aceptado</p>
-                    <div class="action-buttons">
-                        <button class="action-btn success" onclick="avanzarEstado('${incident.id}', 'Solucionado')">
-                            <i class="fa-solid fa-check-circle"></i> Marcar como Solucionado
-                        </button>
-                    </div>
-                </div>
-            ` : ''}
-
-            ${incident.estado === 'Solucionado' ? `
-                <div class="action-section" style="background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); border: 2px solid var(--success);">
-                    <h4 style="color: var(--success);">
-                        <i class="fa-solid fa-check-circle"></i> Incidencia Solucionada
-                    </h4>
-                    <p style="color: var(--text-main); margin-top: 10px;">Esta incidencia ha sido completada exitosamente.</p>
-                </div>
-            ` : ''}
-
-            <div style="margin-top: 20px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem;">Notas Internas del Casero</label>
-                <textarea id="notas-casero" style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: var(--radius-md); min-height: 80px;">${incident.notas_casero || ''}</textarea>
-                <button class="action-btn primary" style="margin-top: 10px;" onclick="guardarNotas('${incident.id}')">
-                    <i class="fa-solid fa-save"></i> Guardar Notas
-                </button>
+                <button class="action-btn success" onclick="avanzarEstado('${incident.id}', 'Solucionado')">Cerrar Incidencia</button>` : ''}
+            
+            <div style="margin-top:20px;">
+                <textarea id="notas-casero" style="width:100%; min-height:80px;">${incident.notas_casero || ''}</textarea>
+                <button class="action-btn primary" onclick="guardarNotas('${incident.id}')">Guardar Notas</button>
             </div>
-        </div>
-    `;
-
-    content.innerHTML = html;
+        </div>`;
 }
 
+// Funciones Auxiliares de Acción
 async function asignarResponsable(incidentId, responsable) {
-    try {
-        const { error: updateError } = await _supabase
-            .from('incidencias')
-            .update({
-                responsable_pago: responsable,
-                estado: 'Asignación de Pago'
-            })
-            .eq('id', incidentId);
-
-        if (updateError) throw updateError;
-
-        const { error: historialError } = await _supabase
-            .from('historial_estados')
-            .insert({
-                incidencia_id: incidentId,
-                estado_anterior: 'Reportada',
-                estado_nuevo: 'Asignación de Pago',
-                notas: `Responsable de pago asignado: ${responsable}`,
-                cambiado_por: currentUser.id
-            });
-
-        if (historialError) throw historialError;
-
-        showToast(`Responsable asignado: ${responsable}`);
-        showIncidentDetail(incidentId);
-        loadIncidents();
-
-    } catch (error) {
-        console.error('Error asignando responsable:', error);
-        showToast('Error al asignar responsable');
-    }
+    await _supabase.from('incidencias').update({ responsable_pago: responsable, estado: 'Asignación de Pago' }).eq('id', incidentId);
+    await _supabase.from('historial_estados').insert({ incidencia_id: incidentId, estado_anterior: 'Reportada', estado_nuevo: 'Asignación de Pago', notas: `Pago: ${responsable}`, cambiado_por: currentUser.id });
+    showIncidentDetail(incidentId); loadIncidents();
 }
 
 async function asignarTecnico(incidentId) {
-    const tecnicoId = document.getElementById('tecnico-select').value;
-
-    if (!tecnicoId) {
-        showToast('Selecciona un técnico');
-        return;
-    }
-
-    try {
-        const { data: tecnico } = await _supabase
-            .from('tecnicos')
-            .select('nombre')
-            .eq('id', tecnicoId)
-            .single();
-
-        const { error: updateError } = await _supabase
-            .from('incidencias')
-            .update({
-                tecnico_id: tecnicoId,
-                estado: 'En manos del Técnico'
-            })
-            .eq('id', incidentId);
-
-        if (updateError) throw updateError;
-
-        const { error: historialError } = await _supabase
-            .from('historial_estados')
-            .insert({
-                incidencia_id: incidentId,
-                estado_anterior: 'Asignación de Pago',
-                estado_nuevo: 'En manos del Técnico',
-                notas: `Técnico asignado: ${tecnico.nombre}`,
-                cambiado_por: currentUser.id
-            });
-
-        if (historialError) throw historialError;
-
-        showToast('Técnico asignado correctamente');
-        showIncidentDetail(incidentId);
-        loadIncidents();
-
-    } catch (error) {
-        console.error('Error asignando técnico:', error);
-        showToast('Error al asignar técnico');
-    }
+    const tId = document.getElementById('tecnico-select').value;
+    if (!tId) return;
+    await _supabase.from('incidencias').update({ tecnico_id: tId, estado: 'En manos del Técnico' }).eq('id', incidentId);
+    showIncidentDetail(incidentId); loadIncidents();
 }
 
-async function avanzarEstado(incidentId, nuevoEstado) {
-    try {
-        const { data: incident } = await _supabase
-            .from('incidencias')
-            .select('estado')
-            .eq('id', incidentId)
-            .single();
-
-        const { error: updateError } = await _supabase
-            .from('incidencias')
-            .update({ estado: nuevoEstado })
-            .eq('id', incidentId);
-
-        if (updateError) throw updateError;
-
-        const { error: historialError } = await _supabase
-            .from('historial_estados')
-            .insert({
-                incidencia_id: incidentId,
-                estado_anterior: incident.estado,
-                estado_nuevo: nuevoEstado,
-                cambiado_por: currentUser.id
-            });
-
-        if (historialError) throw historialError;
-
-        showToast('Estado actualizado correctamente');
-        showIncidentDetail(incidentId);
-        loadIncidents();
-
-    } catch (error) {
-        console.error('Error avanzando estado:', error);
-        showToast('Error al actualizar estado');
-    }
+async function avanzarEstado(incidentId, nuevo) {
+    const { data: inc } = await _supabase.from('incidencias').select('estado').eq('id', incidentId).single();
+    await _supabase.from('incidencias').update({ estado: nuevo }).eq('id', incidentId);
+    await _supabase.from('historial_estados').insert({ incidencia_id: incidentId, estado_anterior: inc.estado, estado_nuevo: nuevo, cambiado_por: currentUser.id });
+    showIncidentDetail(incidentId); loadIncidents();
 }
 
 async function enviarPresupuesto(incidentId) {
-    const monto = document.getElementById('presupuesto-monto').value;
-    const descripcion = document.getElementById('presupuesto-descripcion').value;
-
-    if (!monto || parseFloat(monto) <= 0) {
-        showToast('Introduce un monto válido');
-        return;
-    }
-
-    try {
-        const { error: updateError } = await _supabase
-            .from('incidencias')
-            .update({
-                presupuesto_monto: parseFloat(monto),
-                presupuesto_descripcion: descripcion,
-                presupuesto_estado: 'pendiente',
-                estado: 'Presupuesto Pendiente'
-            })
-            .eq('id', incidentId);
-
-        if (updateError) throw updateError;
-
-        const { error: historialError } = await _supabase
-            .from('historial_estados')
-            .insert({
-                incidencia_id: incidentId,
-                estado_anterior: 'Reparación en Curso',
-                estado_nuevo: 'Presupuesto Pendiente',
-                notas: `Presupuesto enviado: ${monto}€`,
-                cambiado_por: currentUser.id
-            });
-
-        if (historialError) throw historialError;
-
-        showToast('Presupuesto enviado correctamente');
-        showIncidentDetail(incidentId);
-        loadIncidents();
-
-    } catch (error) {
-        console.error('Error enviando presupuesto:', error);
-        showToast('Error al enviar presupuesto');
-    }
+    const m = document.getElementById('presupuesto-monto').value;
+    await _supabase.from('incidencias').update({ presupuesto_monto: m, presupuesto_estado: 'pendiente', estado: 'Presupuesto Pendiente' }).eq('id', incidentId);
+    showIncidentDetail(incidentId); loadIncidents();
 }
 
-async function gestionarPresupuesto(incidentId, decision) {
-    try {
-        const { error: updateError } = await _supabase
-            .from('incidencias')
-            .update({ presupuesto_estado: decision })
-            .eq('id', incidentId);
-
-        if (updateError) throw updateError;
-
-        const mensaje = decision === 'aceptado'
-            ? 'Presupuesto aceptado - Se procederá con el pago'
-            : 'Presupuesto rechazado - Se debe negociar';
-
-        const { error: historialError } = await _supabase
-            .from('historial_estados')
-            .insert({
-                incidencia_id: incidentId,
-                estado_anterior: 'Presupuesto Pendiente',
-                estado_nuevo: 'Presupuesto Pendiente',
-                notas: mensaje,
-                cambiado_por: currentUser.id
-            });
-
-        if (historialError) throw historialError;
-
-        showToast(decision === 'aceptado' ? 'Presupuesto aceptado' : 'Presupuesto rechazado');
-        showIncidentDetail(incidentId);
-        loadIncidents();
-
-    } catch (error) {
-        console.error('Error gestionando presupuesto:', error);
-        showToast('Error al gestionar presupuesto');
-    }
+async function gestionarPresupuesto(incidentId, dec) {
+    await _supabase.from('incidencias').update({ presupuesto_estado: dec }).eq('id', incidentId);
+    showIncidentDetail(incidentId); loadIncidents();
 }
 
 async function guardarNotas(incidentId) {
-    const notas = document.getElementById('notas-casero').value;
-
-    try {
-        const { error } = await _supabase
-            .from('incidencias')
-            .update({ notas_casero: notas })
-            .eq('id', incidentId);
-
-        if (error) throw error;
-
-        showToast('Notas guardadas correctamente');
-
-    } catch (error) {
-        console.error('Error guardando notas:', error);
-        showToast('Error al guardar notas');
-    }
+    const n = document.getElementById('notas-casero').value;
+    await _supabase.from('incidencias').update({ notas_casero: n }).eq('id', incidentId);
+    showToast('Notas guardadas');
 }
 
 function closeIncidentDetailModal() {
     document.getElementById('incident-detail-modal').classList.remove('active');
     loadIncidents();
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
