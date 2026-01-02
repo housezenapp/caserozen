@@ -1,3 +1,7 @@
+/**
+ * js/ui.js - Interfaz y Eventos (Versión Integrada y Estable)
+ */
+
 // --- UTILIDADES ---
 function showToast(message) {
     const toast = document.getElementById('toast');
@@ -19,6 +23,7 @@ function toggleSidebar() {
 }
 
 function showPage(pageName) {
+    console.log("📄 Navegando a:", pageName);
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -32,11 +37,13 @@ function showPage(pageName) {
         navItem.classList.add('active');
     }
 
+    // Cerrar sidebar automáticamente en móvil al navegar
     const sidebar = document.getElementById('sidebar');
     if (sidebar && sidebar.classList.contains('active')) {
         toggleSidebar();
     }
 
+    // Cargas automáticas según la sección
     if (pageName === 'incidencias') {
         if (typeof window.loadIncidents === 'function') window.loadIncidents();
     } else if (pageName === 'propiedades') {
@@ -47,6 +54,7 @@ function showPage(pageName) {
 }
 
 function formatDate(dateString) {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -63,7 +71,7 @@ function formatDateShort(dateString) {
 
 // --- CONFIGURACIÓN DE EVENTOS (setupEventListeners) ---
 function setupEventListeners() {
-    console.log("Activando todos los manejadores de eventos...");
+    console.log("🔘 Conectando manejadores de eventos...");
 
     // Tabs de Login/Registro
     document.querySelectorAll('.auth-tab').forEach(tab => {
@@ -113,15 +121,18 @@ function setupEventListeners() {
         });
     }
 
-    // --- BOTÓN GOOGLE (Conexión Crítica de Bolt) ---
+    // --- BOTÓN GOOGLE (Crítico) ---
     const btnGoogle = document.getElementById('btnGoogleLogin');
     if (btnGoogle) {
-        btnGoogle.addEventListener('click', async (e) => {
+        // Clonamos para evitar múltiples listeners si se llama a setupEventListeners varias veces
+        const newBtnGoogle = btnGoogle.cloneNode(true);
+        btnGoogle.parentNode.replaceChild(newBtnGoogle, btnGoogle);
+        
+        newBtnGoogle.addEventListener('click', async (e) => {
             e.preventDefault();
+            console.log("Click en Google Login");
             if (window.loginWithGoogle) {
                 await window.loginWithGoogle();
-            } else {
-                console.error("Función window.loginWithGoogle no encontrada");
             }
         });
     }
@@ -137,7 +148,9 @@ function setupEventListeners() {
     if (btnLogout) {
         btnLogout.addEventListener('click', (e) => {
             e.preventDefault();
-            if (window.logout) window.logout();
+            if (window.logout) {
+                window.logout(); // Llama a la función reforzada en auth.js
+            }
         });
     }
 
@@ -145,7 +158,7 @@ function setupEventListeners() {
     document.querySelectorAll('.nav-item[data-page]').forEach(item => {
         item.addEventListener('click', function() {
             const page = this.dataset.page;
-            showPage(page);
+            if (page) showPage(page);
         });
     });
 
@@ -178,6 +191,7 @@ function setupEventListeners() {
         });
     }
 
+    // MODAL INCIDENCIAS
     const closeIncModal = document.getElementById('closeIncidentModal');
     if (closeIncModal) {
         closeIncModal.addEventListener('click', () => {
