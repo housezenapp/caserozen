@@ -1,5 +1,12 @@
+/**
+ * js/incidents.js - Gestión y Logística de Incidencias
+ * Adaptado para compatibilidad global y vinculación por perfil_propiedades
+ */
+
 async function loadIncidents() {
     const container = document.getElementById('incidents-logistics-container');
+    if (!container) return;
+
     container.innerHTML = `
         <div class="loading-state">
             <i class="fa-solid fa-spinner fa-spin"></i>
@@ -10,6 +17,11 @@ async function loadIncidents() {
     try {
         let incidents = [];
 
+        // Uso de variables globales del objeto window
+        const _supabase = window._supabase;
+        const currentUser = window.currentUser;
+        const isAdmin = window.isAdmin;
+
         if (isAdmin) {
             const { data } = await _supabase
                 .from('incidencias')
@@ -18,46 +30,66 @@ async function loadIncidents() {
 
             incidents = data || [];
         } else {
-            const { data } = await _supabase
-                .from('incidencias')
-                .select(`
-                    *,
-                    propiedades!inner (
-                        id,
-                        casero_id
-                    )
-                `)
-                .eq('propiedades.casero_id', currentUser.id)
-                .order('created_at', { ascending: false });
+            // 1. Obtener los IDs de los inquilinos vinculados al casero actual
+            const { data: vinculaciones, error: vError } = await _supabase
+                .from('perfil_propiedades')
+                .select('id_perfil_inquilino')
+                .eq('id_perfil_casero', currentUser.id);
 
-            if (!data || data.length === 0) {
-                document.getElementById('stat-urgent').textContent = '0';
-                document.getElementById('stat-pending').textContent = '0';
-                document.getElementById('stat-progress').textContent = '0';
+            if (vError) throw vError;
+
+            // Verificación de seguridad: Si no hay inquilinos vinculados
+            if (!vinculaciones || vinculaciones.length === 0) {
+                if (document.getElementById('stat-urgent')) document.getElementById('stat-urgent').textContent = '0';
+                if (document.getElementById('stat-pending')) document.getElementById('stat-pending').textContent = '0';
+                if (document.getElementById('stat-progress')) document.getElementById('stat-progress').textContent = '0';
                 container.innerHTML = `
                     <div class="empty-state">
-                        <i class="fa-solid fa-home"></i>
-                        <div class="empty-state-text">No hay incidencias vinculadas a tus propiedades</div>
+                        <i class="fa-solid fa-user-slash"></i>
+                        <div class="empty-state-text">No tienes inquilinos vinculados todavía</div>
                     </div>
                 `;
                 return;
             }
 
-            incidents = data;
+            const inquilinoIds = vinculaciones.map(v => v.id_perfil_inquilino);
+
+            // 2. Consulta incidencias buscando por el user_id del inquilino
+            const { data, error: iError } = await _supabase
+                .from('incidencias')
+                .select('*')
+                .in('user_id', inquilinoIds)
+                .order('created_at', { ascending: false });
+
+            if (iError) throw iError;
+
+            incidents = data || [];
         }
 
+        // Actualizar contadores del dashboard
         const urgentes = incidents.filter(i => i.urgencia === 'alta' && i.estado !== 'Solucionado').length;
         const pendientes = incidents.filter(i => i.estado === 'Reportada').length;
         const enProceso = incidents.filter(i =>
             i.estado !== 'Reportada' && i.estado !== 'Solucionado'
         ).length;
 
-        document.getElementById('stat-urgent').textContent = urgentes;
-        document.getElementById('stat-pending').textContent = pendientes;
-        document.getElementById('stat-progress').textContent = enProceso;
+        if (document.getElementById('stat-urgent')) document.getElementById('stat-urgent').textContent = urgentes;
+        if (document.getElementById('stat-pending')) document.getElementById('stat-pending').textContent = pendientes;
+        if (document.getElementById('stat-progress')) document.getElementById('stat-progress').textContent = enProceso;
 
-        const filterEstado = document.getElementById('filter-estado').value;
-        const filterUrgencia = document.getElementById('filter-urgencia').value;
+        if (incidents.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-home"></i>
+                    <div class="empty-state-text">No hay incidencias vinculadas a tus inquilinos</div>
+                </div>
+            `;
+            return;
+        }
+
+        // Aplicar filtros de la UI
+        const filterEstado = document.getElementById('filter-estado') ? document.getElementById('filter-estado').value : '';
+        const filterUrgencia = document.getElementById('filter-urgencia') ? document.getElementById('filter-urgencia').value : '';
 
         let filteredIncidents = [...incidents];
 
@@ -83,12 +115,13 @@ async function loadIncidents() {
 
     } catch (error) {
         console.error('Error loading incidents:', error);
-        showToast('Error al cargar las incidencias');
+        if (typeof window.showToast === 'function') window.showToast('Error al cargar las incidencias');
     }
 }
 
 function renderIncidentsList(incidents) {
     const container = document.getElementById('incidents-logistics-container');
+    if (!container) return;
 
     const html = incidents.map(inc => `
         <div class="incident-card urgency-${inc.urgencia}" onclick="showIncidentDetail('${inc.id}')">
@@ -124,6 +157,8 @@ async function showIncidentDetail(incidentId) {
     const modal = document.getElementById('incident-detail-modal');
     const content = document.getElementById('incident-detail-content');
 
+    if (!modal || !content) return;
+
     content.innerHTML = `
         <div class="loading-state">
             <i class="fa-solid fa-spinner fa-spin"></i>
@@ -133,6 +168,9 @@ async function showIncidentDetail(incidentId) {
     modal.classList.add('active');
 
     try {
+        const _supabase = window._supabase;
+        const currentUser = window.currentUser;
+
         const { data: incident } = await _supabase
             .from('incidencias')
             .select('*')
@@ -140,7 +178,7 @@ async function showIncidentDetail(incidentId) {
             .single();
 
         if (!incident) {
-            showToast('Incidencia no encontrada');
+            if (typeof window.showToast === 'function') window.showToast('Incidencia no encontrada');
             return;
         }
 
@@ -160,12 +198,13 @@ async function showIncidentDetail(incidentId) {
 
     } catch (error) {
         console.error('Error loading incident detail:', error);
-        showToast('Error al cargar el detalle');
+        if (typeof window.showToast === 'function') window.showToast('Error al cargar el detalle');
     }
 }
 
 function renderIncidentDetail(incident, historial, tecnicos) {
     const content = document.getElementById('incident-detail-content');
+    if (!content) return;
 
     const estados = [
         'Reportada',
@@ -376,8 +415,13 @@ function renderIncidentDetail(incident, historial, tecnicos) {
     content.innerHTML = html;
 }
 
-async function asignarResponsable(incidentId, responsable) {
+// Funciones globales asignadas al objeto window para compatibilidad onclick
+
+window.asignarResponsable = async (incidentId, responsable) => {
     try {
+        const _supabase = window._supabase;
+        const currentUser = window.currentUser;
+
         const { error: updateError } = await _supabase
             .from('incidencias')
             .update({
@@ -388,7 +432,7 @@ async function asignarResponsable(incidentId, responsable) {
 
         if (updateError) throw updateError;
 
-        const { error: historialError } = await _supabase
+        await _supabase
             .from('historial_estados')
             .insert({
                 incidencia_id: incidentId,
@@ -398,27 +442,26 @@ async function asignarResponsable(incidentId, responsable) {
                 cambiado_por: currentUser.id
             });
 
-        if (historialError) throw historialError;
-
-        showToast(`Responsable asignado: ${responsable}`);
+        if (typeof window.showToast === 'function') window.showToast(`Responsable asignado: ${responsable}`);
         showIncidentDetail(incidentId);
         loadIncidents();
-
     } catch (error) {
-        console.error('Error asignando responsable:', error);
-        showToast('Error al asignar responsable');
+        console.error('Error:', error);
+        if (typeof window.showToast === 'function') window.showToast('Error al asignar responsable');
     }
-}
+};
 
-async function asignarTecnico(incidentId) {
+window.asignarTecnico = async (incidentId) => {
     const tecnicoId = document.getElementById('tecnico-select').value;
-
     if (!tecnicoId) {
-        showToast('Selecciona un técnico');
+        if (typeof window.showToast === 'function') window.showToast('Selecciona un técnico');
         return;
     }
 
     try {
+        const _supabase = window._supabase;
+        const currentUser = window.currentUser;
+
         const { data: tecnico } = await _supabase
             .from('tecnicos')
             .select('nombre')
@@ -435,7 +478,7 @@ async function asignarTecnico(incidentId) {
 
         if (updateError) throw updateError;
 
-        const { error: historialError } = await _supabase
+        await _supabase
             .from('historial_estados')
             .insert({
                 incidencia_id: incidentId,
@@ -445,20 +488,20 @@ async function asignarTecnico(incidentId) {
                 cambiado_por: currentUser.id
             });
 
-        if (historialError) throw historialError;
-
-        showToast('Técnico asignado correctamente');
+        if (typeof window.showToast === 'function') window.showToast('Técnico asignado correctamente');
         showIncidentDetail(incidentId);
         loadIncidents();
-
     } catch (error) {
-        console.error('Error asignando técnico:', error);
-        showToast('Error al asignar técnico');
+        console.error('Error:', error);
+        if (typeof window.showToast === 'function') window.showToast('Error al asignar técnico');
     }
-}
+};
 
-async function avanzarEstado(incidentId, nuevoEstado) {
+window.avanzarEstado = async (incidentId, nuevoEstado) => {
     try {
+        const _supabase = window._supabase;
+        const currentUser = window.currentUser;
+
         const { data: incident } = await _supabase
             .from('incidencias')
             .select('estado')
@@ -472,7 +515,7 @@ async function avanzarEstado(incidentId, nuevoEstado) {
 
         if (updateError) throw updateError;
 
-        const { error: historialError } = await _supabase
+        await _supabase
             .from('historial_estados')
             .insert({
                 incidencia_id: incidentId,
@@ -481,28 +524,28 @@ async function avanzarEstado(incidentId, nuevoEstado) {
                 cambiado_por: currentUser.id
             });
 
-        if (historialError) throw historialError;
-
-        showToast('Estado actualizado correctamente');
+        if (typeof window.showToast === 'function') window.showToast('Estado actualizado correctamente');
         showIncidentDetail(incidentId);
         loadIncidents();
-
     } catch (error) {
-        console.error('Error avanzando estado:', error);
-        showToast('Error al actualizar estado');
+        console.error('Error:', error);
+        if (typeof window.showToast === 'function') window.showToast('Error al actualizar estado');
     }
-}
+};
 
-async function enviarPresupuesto(incidentId) {
+window.enviarPresupuesto = async (incidentId) => {
     const monto = document.getElementById('presupuesto-monto').value;
     const descripcion = document.getElementById('presupuesto-descripcion').value;
 
     if (!monto || parseFloat(monto) <= 0) {
-        showToast('Introduce un monto válido');
+        if (typeof window.showToast === 'function') window.showToast('Introduce un monto válido');
         return;
     }
 
     try {
+        const _supabase = window._supabase;
+        const currentUser = window.currentUser;
+
         const { error: updateError } = await _supabase
             .from('incidencias')
             .update({
@@ -515,7 +558,7 @@ async function enviarPresupuesto(incidentId) {
 
         if (updateError) throw updateError;
 
-        const { error: historialError } = await _supabase
+        await _supabase
             .from('historial_estados')
             .insert({
                 incidencia_id: incidentId,
@@ -525,20 +568,20 @@ async function enviarPresupuesto(incidentId) {
                 cambiado_por: currentUser.id
             });
 
-        if (historialError) throw historialError;
-
-        showToast('Presupuesto enviado correctamente');
+        if (typeof window.showToast === 'function') window.showToast('Presupuesto enviado correctamente');
         showIncidentDetail(incidentId);
         loadIncidents();
-
     } catch (error) {
-        console.error('Error enviando presupuesto:', error);
-        showToast('Error al enviar presupuesto');
+        console.error('Error:', error);
+        if (typeof window.showToast === 'function') window.showToast('Error al enviar presupuesto');
     }
-}
+};
 
-async function gestionarPresupuesto(incidentId, decision) {
+window.gestionarPresupuesto = async (incidentId, decision) => {
     try {
+        const _supabase = window._supabase;
+        const currentUser = window.currentUser;
+
         const { error: updateError } = await _supabase
             .from('incidencias')
             .update({ presupuesto_estado: decision })
@@ -550,7 +593,7 @@ async function gestionarPresupuesto(incidentId, decision) {
             ? 'Presupuesto aceptado - Se procederá con el pago'
             : 'Presupuesto rechazado - Se debe negociar';
 
-        const { error: historialError } = await _supabase
+        await _supabase
             .from('historial_estados')
             .insert({
                 incidencia_id: incidentId,
@@ -560,38 +603,52 @@ async function gestionarPresupuesto(incidentId, decision) {
                 cambiado_por: currentUser.id
             });
 
-        if (historialError) throw historialError;
-
-        showToast(decision === 'aceptado' ? 'Presupuesto aceptado' : 'Presupuesto rechazado');
+        if (typeof window.showToast === 'function') window.showToast(decision === 'aceptado' ? 'Presupuesto aceptado' : 'Presupuesto rechazado');
         showIncidentDetail(incidentId);
         loadIncidents();
-
     } catch (error) {
-        console.error('Error gestionando presupuesto:', error);
-        showToast('Error al gestionar presupuesto');
+        console.error('Error:', error);
+        if (typeof window.showToast === 'function') window.showToast('Error al gestionar presupuesto');
     }
-}
+};
 
-async function guardarNotas(incidentId) {
+window.guardarNotas = async (incidentId) => {
     const notas = document.getElementById('notas-casero').value;
-
     try {
+        const _supabase = window._supabase;
         const { error } = await _supabase
             .from('incidencias')
             .update({ notas_casero: notas })
             .eq('id', incidentId);
 
         if (error) throw error;
-
-        showToast('Notas guardadas correctamente');
-
+        if (typeof window.showToast === 'function') window.showToast('Notas guardadas');
     } catch (error) {
-        console.error('Error guardando notas:', error);
-        showToast('Error al guardar notas');
+        console.error('Error:', error);
+        if (typeof window.showToast === 'function') window.showToast('Error al guardar notas');
     }
+};
+
+window.closeIncidentDetailModal = () => {
+    const modal = document.getElementById('incident-detail-modal');
+    if (modal) modal.classList.remove('active');
+    loadIncidents();
+};
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }
 
-function closeIncidentDetailModal() {
-    document.getElementById('incident-detail-modal').classList.remove('active');
-    loadIncidents();
-}
+// Exposición global de funciones principales
+window.loadIncidents = loadIncidents;
+window.showIncidentDetail = showIncidentDetail;
+window.renderIncidentsList = renderIncidentsList;
+window.renderIncidentDetail = renderIncidentDetail;
