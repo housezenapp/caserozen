@@ -1,12 +1,5 @@
-import { 
-    loadProperties, 
-    openPropertyModal, 
-    closePropertyModal, 
-    handlePropertySubmit 
-} from './properties.js';
-
 // --- UTILIDADES ---
-export function showToast(message) {
+function showToast(message) {
     const toast = document.getElementById('toast');
     if (!toast) return;
     toast.textContent = message;
@@ -16,7 +9,7 @@ export function showToast(message) {
     }, 3000);
 }
 
-export function toggleSidebar() {
+function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('menuOverlay');
     if (sidebar && overlay) {
@@ -25,7 +18,7 @@ export function toggleSidebar() {
     }
 }
 
-export function showPage(pageName) {
+function showPage(pageName) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -45,22 +38,22 @@ export function showPage(pageName) {
     }
 
     if (pageName === 'incidencias') {
-        if (typeof loadIncidents === 'function') loadIncidents();
+        if (typeof window.loadIncidents === 'function') window.loadIncidents();
     } else if (pageName === 'propiedades') {
-        loadProperties();
+        if (typeof window.loadProperties === 'function') window.loadProperties();
     } else if (pageName === 'perfil') {
-        if (typeof loadProfile === 'function') loadProfile();
+        if (typeof window.loadProfile === 'function') window.loadProfile();
     }
 }
 
-export function formatDate(dateString) {
+function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
 }
 
-export function formatDateShort(dateString) {
+function formatDateShort(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
@@ -69,7 +62,7 @@ export function formatDateShort(dateString) {
 }
 
 // --- CONFIGURACIÓN DE EVENTOS (setupEventListeners) ---
-export function setupEventListeners() {
+function setupEventListeners() {
     console.log("Activando todos los manejadores de eventos...");
 
     // Tabs de Login/Registro
@@ -96,7 +89,7 @@ export function setupEventListeners() {
             e.preventDefault();
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-            if (typeof loginWithEmail === 'function') await loginWithEmail(email, password);
+            if (typeof window.loginWithEmail === 'function') await window.loginWithEmail(email, password);
         });
     }
 
@@ -116,7 +109,7 @@ export function setupEventListeners() {
                 showToast('La contraseña debe tener al menos 6 caracteres');
                 return;
             }
-            if (typeof registerWithEmail === 'function') await registerWithEmail(email, password);
+            if (typeof window.registerWithEmail === 'function') await window.registerWithEmail(email, password);
         });
     }
 
@@ -159,41 +152,55 @@ export function setupEventListeners() {
     // PROPIEDADES Y PERFIL
     const btnAddProp = document.getElementById('btnAddProperty');
     if (btnAddProp) {
-        btnAddProp.addEventListener('click', openPropertyModal);
+        btnAddProp.addEventListener('click', () => {
+            if (typeof window.openPropertyModal === 'function') window.openPropertyModal();
+        });
     }
 
     const closePropModalBtn = document.getElementById('closePropertyModal');
     if (closePropModalBtn) {
-        closePropModalBtn.addEventListener('click', closePropertyModal);
+        closePropModalBtn.addEventListener('click', () => {
+            if (typeof window.closePropertyModal === 'function') window.closePropertyModal();
+        });
     }
 
     const propForm = document.getElementById('propertyForm');
     if (propForm) {
-        propForm.addEventListener('submit', handlePropertySubmit);
+        propForm.addEventListener('submit', (e) => {
+            if (typeof window.handlePropertySubmit === 'function') window.handlePropertySubmit(e);
+        });
     }
 
     const perfilForm = document.getElementById('perfilForm');
     if (perfilForm) {
         perfilForm.addEventListener('submit', (e) => {
-            if (typeof handleProfileSubmit === 'function') handleProfileSubmit(e);
+            if (typeof window.handleProfileSubmit === 'function') window.handleProfileSubmit(e);
         });
     }
 
     const closeIncModal = document.getElementById('closeIncidentModal');
     if (closeIncModal) {
         closeIncModal.addEventListener('click', () => {
-            if (typeof closeIncidentDetailModal === 'function') closeIncidentDetailModal();
+            if (typeof window.closeIncidentDetailModal === 'function') window.closeIncidentDetailModal();
         });
     }
 
     // FILTROS
     const filterEstado = document.getElementById('filter-estado');
     if (filterEstado) filterEstado.addEventListener('change', () => {
-        if (typeof loadIncidents === 'function') loadIncidents();
+        if (typeof window.loadIncidents === 'function') window.loadIncidents();
     });
 
     const filterUrgencia = document.getElementById('filter-urgencia');
     if (filterUrgencia) filterUrgencia.addEventListener('change', () => {
-        if (typeof loadIncidents === 'function') loadIncidents();
+        if (typeof window.loadIncidents === 'function') window.loadIncidents();
     });
 }
+
+// Exposición global
+window.showPage = showPage;
+window.setupEventListeners = setupEventListeners;
+window.showToast = showToast;
+window.toggleSidebar = toggleSidebar;
+window.formatDate = formatDate;
+window.formatDateShort = formatDateShort;
