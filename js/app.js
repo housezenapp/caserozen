@@ -1,3 +1,12 @@
+// Registro del Service Worker (Limpiador de caché)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log("🚀 Sistema de estabilidad PWA activado", reg.scope))
+            .catch(err => console.error("❌ Error al registrar el SW", err));
+    });
+}
+
 /**
  * js/app.js - Orquestador Principal
  */
