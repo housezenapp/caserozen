@@ -2,7 +2,7 @@
  * js/properties.js - Gestión de Datos de Propiedades
  */
 
-// 1. Generador de código único (Formato: 1234ABC)
+// 1. Generador de código único (Interno)
 function generatePropertyCode() {
     const numbers = Math.floor(1000 + Math.random() * 9000);
     const letters = Array.from({length: 3}, () =>
@@ -12,11 +12,10 @@ function generatePropertyCode() {
 }
 
 // 2. Carga de propiedades desde Supabase
-export async function loadProperties() {
+async function loadProperties() {
     const container = document.getElementById('properties-container');
     if (!container) return;
 
-    // Mostrar estado de carga
     container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Cargando tus propiedades...</div>';
 
     if (!window.currentUser) {
@@ -25,20 +24,13 @@ export async function loadProperties() {
     }
 
     try {
-        console.log('🏠 Cargando propiedades para el usuario:', window.currentUser.id);
-
         const { data, error } = await window._supabase
             .from('propiedades')
             .select('*')
             .eq('perfil_id', window.currentUser.id)
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('❌ Error al cargar propiedades:', error);
-            throw error;
-        }
-
-        console.log('✅ Propiedades cargadas:', data);
+        if (error) throw error;
         renderProperties(data || []);
     } catch (error) {
         console.error('❌ Error al cargar propiedades:', error);
@@ -46,9 +38,10 @@ export async function loadProperties() {
     }
 }
 
-// 3. Renderizado de las tarjetas de propiedad
+// 3. Renderizado
 function renderProperties(properties) {
     const container = document.getElementById('properties-container');
+    if (!container) return;
     
     if (properties.length === 0) {
         container.innerHTML = `
@@ -80,27 +73,23 @@ function renderProperties(properties) {
     `).join('');
 }
 
-// 4. Lógica del Modal (Abrir/Cerrar)
-export async function openPropertyModal() {
+// 4. Lógica del Modal
+async function openPropertyModal() {
     const modal = document.getElementById('property-form-modal');
     const refInput = document.getElementById('property-reference');
     if (!modal) return;
 
-    // Resetear formulario
     document.getElementById('propertyForm').reset();
     
-    // Generar código visual inmediato
     if (refInput) {
-        refInput.value = 'Generando...';
-        const newCode = generatePropertyCode();
-        refInput.value = newCode;
+        refInput.value = generatePropertyCode();
     }
 
     modal.style.display = 'flex';
     modal.classList.add('active');
 }
 
-export function closePropertyModal() {
+function closePropertyModal() {
     const modal = document.getElementById('property-form-modal');
     if (modal) {
         modal.style.display = 'none';
@@ -108,67 +97,59 @@ export function closePropertyModal() {
     }
 }
 
-// 5. Guardado en Base de Datos
-export async function handlePropertySubmit(e) {
-    e.preventDefault();
+// 5. Guardado
+async function handlePropertySubmit(e) {
+    if (e) e.preventDefault();
 
     if (!window.currentUser) {
-        alert("Error: No se detectó una sesión activa de Google.");
+        alert("Error: No se detectó sesión activa.");
         return;
     }
 
     const codigoVinculacion = document.getElementById('property-reference').value;
 
     const propertyData = {
-        id: codigoVinculacion, // El código de vinculación es el ID único
-        perfil_id: window.currentUser.id, // ID del usuario autenticado
+        id: codigoVinculacion, 
+        perfil_id: window.currentUser.id,
         nombre_propiedad: document.getElementById('property-name').value,
         direccion_completa: document.getElementById('property-address').value,
         codigo_vinculacion: codigoVinculacion
     };
 
-    console.log('💾 Guardando propiedad:', propertyData);
-
     try {
-        const { data, error } = await window._supabase
+        const { error } = await window._supabase
             .from('propiedades')
-            .insert([propertyData])
-            .select();
+            .insert([propertyData]);
 
-        if (error) {
-            console.error('❌ Error al guardar propiedad:', error);
-            throw error;
-        }
+        if (error) throw error;
 
-        console.log('✅ Propiedad guardada correctamente:', data);
-
-        // Éxito
         closePropertyModal();
         loadProperties();
-        if (window.showToast) window.showToast("Propiedad registrada correctamente");
+        if (window.showToast) window.showToast("Propiedad registrada");
 
     } catch (error) {
-        console.error('❌ Error completo al guardar:', error);
-        console.error('📋 Detalles:', error.message, error.details, error.hint);
-        alert("No se pudo guardar la propiedad: " + (error.message || 'Error desconocido'));
+        console.error('❌ Error al guardar:', error);
+        alert("Error al guardar: " + error.message);
     }
 }
 
-// 6. Función Global para borrar
-window.deleteProperty = async (id) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar esta propiedad? Se perderán todos los datos vinculados.")) return;
+// --- EXPOSICIÓN GLOBAL ---
+window.loadProperties = loadProperties;
+window.openPropertyModal = openPropertyModal;
+window.closePropertyModal = closePropertyModal;
+window.handlePropertySubmit = handlePropertySubmit;
 
+window.deleteProperty = async (id) => {
+    if (!confirm("¿Eliminar propiedad?")) return;
     try {
         const { error } = await window._supabase
             .from('propiedades')
             .delete()
             .eq('id', id);
-
         if (error) throw error;
-
         loadProperties();
         if (window.showToast) window.showToast("Propiedad eliminada");
     } catch (error) {
-        alert("Error al eliminar la propiedad.");
+        alert("Error al eliminar.");
     }
 };
