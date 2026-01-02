@@ -1,4 +1,5 @@
-import { showToast } from './ui.js';
+// js/profile.js
+// showToast se asume disponible globalmente via window.showToast
 
 window.loadProfile = async function() {
     try {
@@ -29,7 +30,7 @@ window.loadProfile = async function() {
 
     } catch (error) {
         console.error('❌ Error loading profile:', error);
-        showToast('Error al cargar el perfil');
+        if (typeof window.showToast === 'function') window.showToast('Error al cargar el perfil');
     }
 };
 
@@ -37,6 +38,8 @@ window.handleProfileSubmit = async function(e) {
     e.preventDefault();
 
     const btn = document.getElementById('btnSavePerfil');
+    if (!btn) return;
+
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
 
@@ -66,28 +69,24 @@ window.handleProfileSubmit = async function(e) {
 
         if (existing) {
             console.log('📝 Actualizando perfil existente...');
-            const { data, error } = await window._supabase
+            const { error } = await window._supabase
                 .from('perfiles')
                 .update(profileData)
-                .eq('id', window.currentUser.id)
-                .select();
+                .eq('id', window.currentUser.id);
 
-            console.log('📊 Resultado de actualización:', { data, error });
             if (error) throw error;
             console.log('✅ Perfil actualizado en Supabase');
         } else {
             console.log('➕ Insertando nuevo perfil...');
-            const { data, error } = await window._supabase
+            const { error } = await window._supabase
                 .from('perfiles')
-                .insert([profileData])
-                .select();
+                .insert([profileData]);
 
-            console.log('📊 Resultado de inserción:', { data, error });
             if (error) throw error;
             console.log('✅ Perfil insertado en Supabase');
         }
 
-        showToast('Perfil guardado correctamente');
+        if (typeof window.showToast === 'function') window.showToast('Perfil guardado correctamente');
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Guardado';
         setTimeout(() => {
             btn.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar Datos';
@@ -95,8 +94,7 @@ window.handleProfileSubmit = async function(e) {
 
     } catch (error) {
         console.error('❌ Error completo saving profile:', error);
-        console.error('📋 Detalles del error:', error.message, error.details, error.hint);
-        showToast('Error al guardar el perfil: ' + (error.message || 'Error desconocido'));
+        if (typeof window.showToast === 'function') window.showToast('Error al guardar el perfil');
         btn.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar Datos';
     } finally {
         btn.disabled = false;
