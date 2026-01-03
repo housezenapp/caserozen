@@ -3,18 +3,23 @@ const VERSION = 'v2.0.0';
 const CACHE_NAME = `caserozen-${VERSION}`;
 
 // Archivos estáticos para cachear (para funcionar offline básico)
+// Usar rutas relativas para que funcionen en cualquier ruta base
+const getBaseUrl = () => {
+  return self.location.pathname.replace(/\/[^/]*$/, '') || '.';
+};
+
 const STATIC_CACHE_URLS = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/manifest.json',
-  '/js/app.js',
-  '/js/auth.js',
-  '/js/ui.js',
-  '/js/properties.js',
-  '/js/incidents.js',
-  '/js/profile.js',
-  '/js/diagnostic.js'
+  './',
+  './index.html',
+  './styles.css',
+  './manifest.json',
+  './js/app.js',
+  './js/auth.js',
+  './js/ui.js',
+  './js/properties.js',
+  './js/incidents.js',
+  './js/profile.js',
+  './js/diagnostic.js'
 ];
 
 // Instalación del Service Worker

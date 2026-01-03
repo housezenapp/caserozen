@@ -2,7 +2,11 @@
 // Registro del Service Worker para PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
+        // Calcular el scope basado en la ubicación actual
+        const scope = window.location.pathname.replace(/\/[^/]*$/, '') + '/';
+        const swPath = scope + 'sw.js';
+        
+        navigator.serviceWorker.register(swPath, { scope: scope })
             .then((reg) => {
                 console.log("🚀 Service Worker registrado correctamente", reg.scope);
                 
