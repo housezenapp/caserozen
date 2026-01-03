@@ -272,50 +272,77 @@ async function checkAndRefreshSession() {
 // Listener para detectar cuando la pestaña pierde el foco - CERRAR SESIÓN AUTOMÁTICAMENTE
 function setupVisibilityListener() {
     let logoutTimeout = null;
+    let isLoggingOut = false;
     
-    document.addEventListener('visibilitychange', async () => {
-        if (document.hidden) {
-            // La pestaña perdió el foco - cerrar sesión después de 1 segundo
-            console.log("👋 Pestaña oculta, programando cierre de sesión...");
-            
-            logoutTimeout = setTimeout(async () => {
-                console.log("🚪 Cerrando sesión automáticamente al salir de la pestaña");
-                if (typeof window.forceLogout === 'function') {
-                    await window.forceLogout();
-                } else if (typeof window.logout === 'function') {
-                    await window.logout();
-                }
-            }, 1000); // 1 segundo después de perder el foco
-        } else {
-            // La pestaña volvió a estar activa - cancelar el timeout si existe
-            if (logoutTimeout) {
-                clearTimeout(logoutTimeout);
-                logoutTimeout = null;
-                console.log("✅ Pestaña activa, cancelando cierre de sesión");
-            }
+    const triggerLogout = async () => {
+        if (isLoggingOut) return; // Evitar múltiples cierres simultáneos
+        isLoggingOut = true;
+        console.log("🚪 Cerrando sesión automáticamente...");
+        
+        if (typeof window.forceLogout === 'function') {
+            await window.forceLogout();
+        } else if (typeof window.logout === 'function') {
+            await window.logout();
         }
-    });
+    };
     
-    // También escuchar cuando la ventana pierde el foco (cambio de aplicación)
-    window.addEventListener('blur', () => {
-        console.log("👋 Ventana perdió el foco, programando cierre de sesión...");
-        logoutTimeout = setTimeout(async () => {
-            console.log("🚪 Cerrando sesión automáticamente al cambiar de aplicación");
-            if (typeof window.forceLogout === 'function') {
-                await window.forceLogout();
-            } else if (typeof window.logout === 'function') {
-                await window.logout();
-            }
+    const scheduleLogout = (reason) => {
+        if (logoutTimeout) {
+            clearTimeout(logoutTimeout);
+        }
+        console.log(`👋 ${reason}, programando cierre de sesión en 1 segundo...`);
+        
+        logoutTimeout = setTimeout(() => {
+            triggerLogout();
         }, 1000);
-    });
+    };
     
-    window.addEventListener('focus', () => {
+    const cancelLogout = () => {
         if (logoutTimeout) {
             clearTimeout(logoutTimeout);
             logoutTimeout = null;
-            console.log("✅ Ventana recuperó el foco, cancelando cierre de sesión");
+            console.log("✅ Operación cancelada, no se cerrará sesión");
+        }
+    };
+    
+    // Evento principal: cuando la pestaña se oculta/muestra
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Pestaña oculta (cambio de pestaña o minimizar ventana)
+            scheduleLogout("Pestaña oculta");
+        } else {
+            // Pestaña visible de nuevo
+            cancelLogout();
         }
     });
+    
+    // Para escritorio: cuando la ventana pierde/gana el foco
+    window.addEventListener('blur', () => {
+        // Solo activar si la pestaña también está oculta
+        // En escritorio, blur puede dispararse aunque la pestaña siga visible
+        if (document.hidden) {
+            scheduleLogout("Ventana perdió el foco");
+        }
+    });
+    
+    window.addEventListener('focus', () => {
+        cancelLogout();
+    });
+    
+    // Para móvil: cuando la app pasa a segundo plano
+    window.addEventListener('pagehide', () => {
+        scheduleLogout("Página oculta (móvil)");
+    });
+    
+    // Detectar cuando cambias de pestaña en el mismo navegador (especialmente en escritorio)
+    window.addEventListener('beforeunload', () => {
+        // Cancelar el timeout ya que la página se está recargando/navegando
+        if (logoutTimeout) {
+            clearTimeout(logoutTimeout);
+        }
+    });
+    
+    console.log("✅ Listener de visibilidad configurado para móvil y escritorio");
 }
 
 // Exponer funciones
