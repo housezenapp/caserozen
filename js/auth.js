@@ -148,6 +148,30 @@ window.logout = async () => {
     location.reload(); // Recargamos para limpiar todo rastro de datos en memoria
 };
 
+// Función para forzar cierre de sesión cuando hay problemas
+async function forceLogout() {
+    console.log("🚨 Forzando cierre de sesión debido a problemas de autenticación...");
+    window.currentUser = null;
+    
+    try {
+        await window._supabase.auth.signOut();
+    } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+    }
+    
+    // Cambiar a pantalla de login
+    const loginPage = document.getElementById('login-page');
+    const appContent = document.getElementById('app-content');
+    if (loginPage && appContent) {
+        loginPage.classList.remove('hidden');
+        appContent.classList.add('hidden');
+    }
+    
+    if (window.showToast) {
+        window.showToast("Sesión cerrada. Por favor, inicia sesión nuevamente.");
+    }
+}
+
 // Función para verificar y refrescar la sesión
 async function checkAndRefreshSession() {
     try {
@@ -155,7 +179,7 @@ async function checkAndRefreshSession() {
         
         if (error) {
             console.error("❌ Error al verificar sesión:", error);
-            window.currentUser = null;
+            await forceLogout();
             return false;
         }
         
@@ -176,7 +200,7 @@ async function checkAndRefreshSession() {
             
             if (refreshError || !newSession) {
                 console.error("❌ Error al refrescar sesión:", refreshError);
-                window.currentUser = null;
+                await forceLogout();
                 return false;
             }
             
@@ -188,7 +212,7 @@ async function checkAndRefreshSession() {
         return true;
     } catch (error) {
         console.error("❌ Error al verificar sesión:", error);
-        window.currentUser = null;
+        await forceLogout();
         return false;
     }
 }
@@ -202,15 +226,30 @@ function setupVisibilityListener() {
             const hasValidSession = await checkAndRefreshSession();
             
             if (!hasValidSession) {
-                // Sesión expirada, redirigir a login
-                const loginPage = document.getElementById('login-page');
-                const appContent = document.getElementById('app-content');
-                if (loginPage && appContent) {
-                    loginPage.classList.remove('hidden');
-                    appContent.classList.add('hidden');
-                }
-                if (window.showToast) window.showToast("Tu sesión ha expirado. Por favor, inicia sesión nuevamente.");
+                // forceLogout ya fue llamado por checkAndRefreshSession
+                return;
             } else {
+                // Verificar si hay estados de "Cargando..." que no terminaron
+                const loadingElements = document.querySelectorAll('.loading-state');
+                if (loadingElements.length > 0) {
+                    // Si hay elementos de carga visibles después de mucho tiempo, recargar
+                    setTimeout(async () => {
+                        const stillLoading = document.querySelectorAll('.loading-state');
+                        if (stillLoading.length > 0 && document.contains(stillLoading[0])) {
+                            console.log("⚠️ Detectado estado de carga persistente, recargando datos...");
+                            const activePage = document.querySelector('.page.active');
+                            if (activePage) {
+                                const pageId = activePage.id;
+                                if (pageId === 'page-incidencias' && typeof window.loadIncidents === 'function') {
+                                    await window.loadIncidents();
+                                } else if (pageId === 'page-propiedades' && typeof window.loadProperties === 'function') {
+                                    await window.loadProperties();
+                                }
+                            }
+                        }
+                    }, 3000);
+                }
+                
                 // Recargar datos si estamos en una página que los muestra
                 const activePage = document.querySelector('.page.active');
                 if (activePage) {
@@ -230,3 +269,4 @@ function setupVisibilityListener() {
 window.initAuth = initAuth;
 window.checkAndRefreshSession = checkAndRefreshSession;
 window.setupVisibilityListener = setupVisibilityListener;
+window.forceLogout = forceLogout;

@@ -14,29 +14,31 @@ async function loadIncidents() {
         </div>
     `;
 
-    // Verificar sesión antes de cargar datos
-    if (typeof window.checkAndRefreshSession === 'function') {
-        const hasValidSession = await window.checkAndRefreshSession();
-        if (!hasValidSession) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fa-solid fa-exclamation-triangle"></i>
-                    <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
-                </div>
-            `;
+    // Crear timeout de seguridad (15 segundos para incidencias)
+    const timeoutId = setTimeout(async () => {
+        console.error('⏱️ Timeout al cargar incidencias - forzando cierre de sesión');
+        if (typeof window.forceLogout === 'function') {
+            await window.forceLogout();
+        }
+    }, 15000);
+
+    try {
+        // Verificar sesión antes de cargar datos
+        if (typeof window.checkAndRefreshSession === 'function') {
+            const hasValidSession = await window.checkAndRefreshSession();
+            if (!hasValidSession) {
+                clearTimeout(timeoutId);
+                return; // forceLogout ya fue llamado por checkAndRefreshSession
+            }
+        }
+
+        if (!window.currentUser) {
+            clearTimeout(timeoutId);
+            if (typeof window.forceLogout === 'function') {
+                await window.forceLogout();
+            }
             return;
         }
-    }
-
-    if (!window.currentUser) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fa-solid fa-exclamation-triangle"></i>
-                <div class="empty-state-text">Debes iniciar sesión para ver las incidencias.</div>
-            </div>
-        `;
-        return;
-    }
 
     try {
         let incidents = [];
@@ -53,17 +55,12 @@ async function loadIncidents() {
                 .order('created_at', { ascending: false });
 
             if (adminError) {
-                // Si el error es de autenticación, manejar apropiadamente
-                if (adminError.message && (adminError.message.includes('JWT') || adminError.message.includes('session') || adminError.message.includes('auth'))) {
+                clearTimeout(timeoutId);
+                // Si el error es de autenticación, forzar cierre de sesión
+                if (adminError.message && (adminError.message.includes('JWT') || adminError.message.includes('session') || adminError.message.includes('auth') || adminError.message.includes('401') || adminError.message.includes('Unauthorized'))) {
                     console.error('❌ Error de autenticación:', adminError);
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fa-solid fa-exclamation-triangle"></i>
-                            <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
-                        </div>
-                    `;
-                    if (typeof window.checkAndRefreshSession === 'function') {
-                        await window.checkAndRefreshSession();
+                    if (typeof window.forceLogout === 'function') {
+                        await window.forceLogout();
                     }
                     return;
                 }
@@ -79,17 +76,12 @@ async function loadIncidents() {
                 .eq('id_perfil_casero', currentUser.id);
 
             if (vError) {
-                // Si el error es de autenticación, manejar apropiadamente
-                if (vError.message && (vError.message.includes('JWT') || vError.message.includes('session') || vError.message.includes('auth'))) {
+                clearTimeout(timeoutId);
+                // Si el error es de autenticación, forzar cierre de sesión
+                if (vError.message && (vError.message.includes('JWT') || vError.message.includes('session') || vError.message.includes('auth') || vError.message.includes('401') || vError.message.includes('Unauthorized'))) {
                     console.error('❌ Error de autenticación:', vError);
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fa-solid fa-exclamation-triangle"></i>
-                            <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
-                        </div>
-                    `;
-                    if (typeof window.checkAndRefreshSession === 'function') {
-                        await window.checkAndRefreshSession();
+                    if (typeof window.forceLogout === 'function') {
+                        await window.forceLogout();
                     }
                     return;
                 }
@@ -120,17 +112,12 @@ async function loadIncidents() {
                 .order('created_at', { ascending: false });
 
             if (iError) {
-                // Si el error es de autenticación, manejar apropiadamente
-                if (iError.message && (iError.message.includes('JWT') || iError.message.includes('session') || iError.message.includes('auth'))) {
+                clearTimeout(timeoutId);
+                // Si el error es de autenticación, forzar cierre de sesión
+                if (iError.message && (iError.message.includes('JWT') || iError.message.includes('session') || iError.message.includes('auth') || iError.message.includes('401') || iError.message.includes('Unauthorized'))) {
                     console.error('❌ Error de autenticación:', iError);
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fa-solid fa-exclamation-triangle"></i>
-                            <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
-                        </div>
-                    `;
-                    if (typeof window.checkAndRefreshSession === 'function') {
-                        await window.checkAndRefreshSession();
+                    if (typeof window.forceLogout === 'function') {
+                        await window.forceLogout();
                     }
                     return;
                 }
@@ -185,9 +172,11 @@ async function loadIncidents() {
             return;
         }
 
+        clearTimeout(timeoutId); // Limpiar timeout si la carga fue exitosa
         renderIncidentsList(filteredIncidents);
 
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error('Error loading incidents:', error);
         
         // Verificar si es un error de autenticación
@@ -199,20 +188,14 @@ async function loadIncidents() {
                            errorMessage.includes('Unauthorized');
         
         if (isAuthError) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fa-solid fa-exclamation-triangle"></i>
-                    <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
-                </div>
-            `;
-            if (typeof window.checkAndRefreshSession === 'function') {
-                await window.checkAndRefreshSession();
+            if (typeof window.forceLogout === 'function') {
+                await window.forceLogout();
             }
         } else {
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-exclamation-triangle"></i>
-                    <div class="empty-state-text">Error al cargar las incidencias. Por favor, intenta de nuevo.</div>
+                    <div class="empty-state-text">Error al cargar las incidencias. Recarga la página.</div>
                 </div>
             `;
             if (typeof window.showToast === 'function') window.showToast('Error al cargar las incidencias');

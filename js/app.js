@@ -42,5 +42,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.setupVisibilityListener();
     }
 
+    // Verificar después de un tiempo si hay estados de carga persistentes
+    setTimeout(async () => {
+        const loadingElements = document.querySelectorAll('.loading-state');
+        const appContent = document.getElementById('app-content');
+        const loginPage = document.getElementById('login-page');
+        
+        // Si hay elementos de carga y estamos en la app (no en login)
+        if (loadingElements.length > 0 && appContent && !appContent.classList.contains('hidden')) {
+            console.log("⚠️ Detectado estado de carga persistente al iniciar, verificando sesión...");
+            
+            if (typeof window.checkAndRefreshSession === 'function') {
+                const hasValidSession = await window.checkAndRefreshSession();
+                if (!hasValidSession) {
+                    // forceLogout ya fue llamado
+                    return;
+                } else {
+                    // Recargar la página activa
+                    const activePage = document.querySelector('.page.active');
+                    if (activePage) {
+                        const pageId = activePage.id;
+                        if (pageId === 'page-incidencias' && typeof window.loadIncidents === 'function') {
+                            await window.loadIncidents();
+                        } else if (pageId === 'page-propiedades' && typeof window.loadProperties === 'function') {
+                            await window.loadProperties();
+                        }
+                    }
+                }
+            }
+        }
+    }, 8000); // Esperar 8 segundos después de iniciar
+
     console.log("✅ Aplicación inicializada correctamente");
 });

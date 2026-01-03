@@ -18,35 +18,46 @@ async function loadProperties() {
 
     container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Cargando tus propiedades...</div>';
 
-    // Verificar sesión antes de cargar datos
-    if (typeof window.checkAndRefreshSession === 'function') {
-        const hasValidSession = await window.checkAndRefreshSession();
-        if (!hasValidSession) {
-            container.innerHTML = '<p class="error-msg">Tu sesión ha expirado. Por favor, recarga la página.</p>';
-            return;
+    // Crear timeout de seguridad (10 segundos)
+    const timeoutId = setTimeout(async () => {
+        console.error('⏱️ Timeout al cargar propiedades - forzando cierre de sesión');
+        if (typeof window.forceLogout === 'function') {
+            await window.forceLogout();
         }
-    }
-
-    if (!window.currentUser) {
-        container.innerHTML = '<p class="error-msg">Debes iniciar sesión para ver tus propiedades.</p>';
-        return;
-    }
+    }, 10000);
 
     try {
+        // Verificar sesión antes de cargar datos
+        if (typeof window.checkAndRefreshSession === 'function') {
+            const hasValidSession = await window.checkAndRefreshSession();
+            if (!hasValidSession) {
+                clearTimeout(timeoutId);
+                return; // forceLogout ya fue llamado por checkAndRefreshSession
+            }
+        }
+
+        if (!window.currentUser) {
+            clearTimeout(timeoutId);
+            if (typeof window.forceLogout === 'function') {
+                await window.forceLogout();
+            }
+            return;
+        }
+
         const { data, error } = await window._supabase
             .from('propiedades')
             .select('*')
             .eq('perfil_id', window.currentUser.id)
             .order('created_at', { ascending: false });
 
+        clearTimeout(timeoutId); // Limpiar timeout si la carga fue exitosa
+
         if (error) {
-            // Si el error es de autenticación, redirigir a login
-            if (error.message && (error.message.includes('JWT') || error.message.includes('session') || error.message.includes('auth'))) {
+            // Si el error es de autenticación, forzar cierre de sesión
+            if (error.message && (error.message.includes('JWT') || error.message.includes('session') || error.message.includes('auth') || error.message.includes('401') || error.message.includes('Unauthorized'))) {
                 console.error('❌ Error de autenticación:', error);
-                container.innerHTML = '<p class="error-msg">Tu sesión ha expirado. Por favor, recarga la página.</p>';
-                // Si tenemos función para redirigir, la usamos
-                if (typeof window.checkAndRefreshSession === 'function') {
-                    await window.checkAndRefreshSession();
+                if (typeof window.forceLogout === 'function') {
+                    await window.forceLogout();
                 }
                 return;
             }
@@ -54,12 +65,15 @@ async function loadProperties() {
         }
         renderProperties(data || []);
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error('❌ Error al cargar propiedades:', error);
         // Verificar si es un error de autenticación
-        if (error.message && (error.message.includes('JWT') || error.message.includes('session') || error.message.includes('auth'))) {
-            container.innerHTML = '<p class="error-msg">Tu sesión ha expirado. Por favor, recarga la página.</p>';
+        if (error.message && (error.message.includes('JWT') || error.message.includes('session') || error.message.includes('auth') || error.message.includes('401') || error.message.includes('Unauthorized'))) {
+            if (typeof window.forceLogout === 'function') {
+                await window.forceLogout();
+            }
         } else {
-            container.innerHTML = '<p class="error-msg">Error al conectar con la base de datos.</p>';
+            container.innerHTML = '<p class="error-msg">Error al conectar con la base de datos. Recarga la página.</p>';
         }
     }
 }
