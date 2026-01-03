@@ -20,11 +20,11 @@ async function loadProperties() {
 
     // Crear timeout de seguridad (10 segundos)
     const timeoutId = setTimeout(async () => {
-        console.error('⏱️ Timeout al cargar propiedades - forzando cierre de sesión');
+        console.error('⏱️ Timeout al cargar propiedades después de 8 segundos - forzando cierre de sesión');
         if (typeof window.forceLogout === 'function') {
             await window.forceLogout();
         }
-    }, 10000);
+    }, 8000);
 
     try {
         // Verificar sesión antes de cargar datos

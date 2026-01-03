@@ -48,6 +48,18 @@ async function initAuth() {
     
     if (session && !sessionError) {
         console.log("🏠 Sesión previa recuperada");
+        
+        // Verificar que la sesión sigue siendo válida
+        const expiresAt = session.expires_at;
+        const now = Math.floor(Date.now() / 1000);
+        const timeUntilExpiry = expiresAt - now;
+        
+        if (timeUntilExpiry < 60) { // Si expira en menos de 1 minuto, cerrar sesión
+            console.log("⚠️ Sesión expirada, cerrando...");
+            await forceLogout();
+            return;
+        }
+        
         window.currentUser = session.user;
         await updateUserDisplay(session.user);
         
@@ -60,8 +72,48 @@ async function initAuth() {
             appContent.classList.remove('hidden');
             console.log("🖥️ Pantalla cambiada a la APP (sesión recuperada)");
             
-            // Cargar la página de incidencias por defecto
-            if (window.showPage) window.showPage('incidencias');
+            // Esperar un momento para que todos los scripts se hayan cargado
+            setTimeout(async () => {
+                // Verificar nuevamente la sesión antes de cargar
+                const hasValidSession = await checkAndRefreshSession();
+                if (!hasValidSession) {
+                    return; // forceLogout ya fue llamado
+                }
+                
+                // Verificar si el contenedor está vacío o tiene estado de carga persistente
+                const incidentsContainer = document.getElementById('incidents-logistics-container');
+                const propertiesContainer = document.getElementById('properties-container');
+                
+                const activePage = document.querySelector('.page.active');
+                const pageId = activePage ? activePage.id : null;
+                
+                // Cargar datos según la página activa
+                if (pageId === 'page-incidencias' || !pageId) {
+                    // Si no hay contenido o solo hay loading, cargar incidencias
+                    if (!incidentsContainer || !incidentsContainer.innerHTML.trim() || incidentsContainer.querySelector('.loading-state')) {
+                        console.log("📥 Cargando incidencias (sesión recuperada)...");
+                        if (typeof window.loadIncidents === 'function') {
+                            await window.loadIncidents();
+                        } else if (typeof window.showPage === 'function') {
+                            window.showPage('incidencias');
+                        }
+                    }
+                } else if (pageId === 'page-propiedades') {
+                    if (!propertiesContainer || !propertiesContainer.innerHTML.trim() || propertiesContainer.querySelector('.loading-state')) {
+                        console.log("📥 Cargando propiedades (sesión recuperada)...");
+                        if (typeof window.loadProperties === 'function') {
+                            await window.loadProperties();
+                        } else if (typeof window.showPage === 'function') {
+                            window.showPage('propiedades');
+                        }
+                    }
+                } else {
+                    // Usar showPage como fallback
+                    if (typeof window.showPage === 'function') {
+                        window.showPage('incidencias');
+                    }
+                }
+            }, 200); // Aumentar a 200ms para dar más tiempo
         }
     } else {
         // No hay sesión válida, asegurar que estamos en login

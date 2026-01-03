@@ -14,13 +14,13 @@ async function loadIncidents() {
         </div>
     `;
 
-    // Crear timeout de seguridad (15 segundos para incidencias)
+    // Crear timeout de seguridad (10 segundos)
     const timeoutId = setTimeout(async () => {
-        console.error('⏱️ Timeout al cargar incidencias - forzando cierre de sesión');
+        console.error('⏱️ Timeout al cargar incidencias después de 10 segundos - forzando cierre de sesión');
         if (typeof window.forceLogout === 'function') {
             await window.forceLogout();
         }
-    }, 15000);
+    }, 10000);
 
     try {
         // Verificar sesión antes de cargar datos

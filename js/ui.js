@@ -19,12 +19,26 @@ function toggleSidebar() {
 }
 
 function showPage(pageName) {
+    console.log(`📄 Cambiando a página: ${pageName}`);
+    
+    // Verificar que tenemos una sesión válida antes de cambiar de página
+    if (pageName !== 'login' && !window.currentUser) {
+        console.error("⚠️ Intento de cambiar a página sin sesión activa");
+        if (typeof window.forceLogout === 'function') {
+            window.forceLogout();
+        }
+        return;
+    }
+    
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
     const page = document.getElementById(`page-${pageName}`);
     if (page) {
         page.classList.add('active');
+        console.log(`✅ Página ${pageName} activada`);
+    } else {
+        console.error(`❌ No se encontró la página: page-${pageName}`);
     }
 
     const navItem = document.querySelector(`.nav-item[data-page="${pageName}"]`);
@@ -37,13 +51,28 @@ function showPage(pageName) {
         toggleSidebar();
     }
 
-    if (pageName === 'incidencias') {
-        if (typeof window.loadIncidents === 'function') window.loadIncidents();
-    } else if (pageName === 'propiedades') {
-        if (typeof window.loadProperties === 'function') window.loadProperties();
-    } else if (pageName === 'perfil') {
-        if (typeof window.loadProfile === 'function') window.loadProfile();
-    }
+    // Cargar datos con un pequeño delay para asegurar que el DOM esté listo
+    setTimeout(() => {
+        if (pageName === 'incidencias') {
+            if (typeof window.loadIncidents === 'function') {
+                console.log("📥 Cargando incidencias...");
+                window.loadIncidents();
+            } else {
+                console.error("❌ loadIncidents no está disponible");
+            }
+        } else if (pageName === 'propiedades') {
+            if (typeof window.loadProperties === 'function') {
+                console.log("📥 Cargando propiedades...");
+                window.loadProperties();
+            } else {
+                console.error("❌ loadProperties no está disponible");
+            }
+        } else if (pageName === 'perfil') {
+            if (typeof window.loadProfile === 'function') {
+                window.loadProfile();
+            }
+        }
+    }, 50);
 }
 
 function formatDate(dateString) {
