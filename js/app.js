@@ -1,11 +1,52 @@
 
-// Registro del Service Worker (Limpiador de caché)
+// Registro del Service Worker para PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log("🚀 Sistema de estabilidad PWA activado", reg.scope))
-            .catch(err => console.error("❌ Error al registrar el SW", err));
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+            .then((reg) => {
+                console.log("🚀 Service Worker registrado correctamente", reg.scope);
+                
+                // Verificar actualizaciones periódicamente
+                setInterval(() => {
+                    reg.update();
+                }, 60000); // Cada minuto
+                
+                // Escuchar actualizaciones
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    console.log("🔄 Nueva versión del Service Worker encontrada");
+                    
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log("✅ Nueva versión lista. Recarga para actualizar.");
+                            // Opcional: mostrar notificación al usuario
+                            if (window.showToast) {
+                                window.showToast("Nueva versión disponible. Recarga la app.");
+                            }
+                        }
+                    });
+                });
+            })
+            .catch((err) => {
+                console.error("❌ Error al registrar el Service Worker:", err);
+            });
     });
+    
+    // Detectar cuando se completa la instalación PWA
+    window.addEventListener('beforeinstallprompt', (e) => {
+        console.log("💾 PWA lista para instalar");
+        e.preventDefault();
+        window.deferredPrompt = e;
+        
+        // Opcional: mostrar botón de instalación personalizado
+        // Puedes usar esto más tarde si quieres un botón custom
+    });
+    
+    // Detectar cuando la PWA ya está instalada
+    if (window.matchMedia('(display-mode: standalone)').matches || 
+        window.navigator.standalone === true) {
+        console.log("📱 Ejecutándose como PWA instalada");
+    }
 }
 
 /**

@@ -183,14 +183,33 @@ async function createOrUpdateCaseroProfile(user) {
 // --- FUNCIONES GLOBALES (Para que ui.js las vea) ---
 
 window.loginWithGoogle = async () => {
-    console.log("🚀 Lanzando bumerán a Google...");
-    const { error } = await window._supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-            redirectTo: 'https://housezenapp.github.io/caserozen/'
+    console.log("🚀 Lanzando inicio de sesión con Google...");
+    
+    // Verificar que Supabase esté inicializado
+    if (!window._supabase) {
+        console.error("❌ Supabase no está inicializado");
+        throw new Error("La conexión a la base de datos no está disponible");
+    }
+    
+    try {
+        const { data, error } = await window._supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin + window.location.pathname
+            }
+        });
+        
+        if (error) {
+            console.error("❌ Error en el inicio de sesión:", error);
+            throw error;
         }
-    });
-    if (error) console.error("❌ Error en el inicio de sesión:", error.message);
+        
+        console.log("✅ Redirección a Google iniciada correctamente");
+        return data;
+    } catch (error) {
+        console.error("❌ Error completo al iniciar sesión con Google:", error);
+        throw error;
+    }
 };
 
 window.logout = async () => {

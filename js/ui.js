@@ -145,14 +145,53 @@ function setupEventListeners() {
     // --- BOTÓN GOOGLE (Conexión Crítica de Bolt) ---
     const btnGoogle = document.getElementById('btnGoogleLogin');
     if (btnGoogle) {
-        btnGoogle.addEventListener('click', async (e) => {
+        // Remover listeners previos si existen
+        btnGoogle.replaceWith(btnGoogle.cloneNode(true));
+        const btnGoogleNew = document.getElementById('btnGoogleLogin');
+        
+        // Función de manejo del click
+        const handleGoogleLogin = async (e) => {
             e.preventDefault();
-            if (window.loginWithGoogle) {
-                await window.loginWithGoogle();
-            } else {
-                console.error("Función window.loginWithGoogle no encontrada");
+            e.stopPropagation();
+            
+            console.log("🔘 Botón Google clickeado");
+            
+            // Deshabilitar botón temporalmente para evitar múltiples clicks
+            btnGoogleNew.disabled = true;
+            btnGoogleNew.style.opacity = '0.6';
+            btnGoogleNew.style.cursor = 'wait';
+            
+            try {
+                if (typeof window.loginWithGoogle === 'function') {
+                    console.log("✅ Función loginWithGoogle encontrada, ejecutando...");
+                    await window.loginWithGoogle();
+                } else {
+                    console.error("❌ Función window.loginWithGoogle no encontrada");
+                    alert("Error: La función de inicio de sesión no está disponible. Por favor, recarga la página.");
+                }
+            } catch (error) {
+                console.error("❌ Error al iniciar sesión con Google:", error);
+                alert("Error al iniciar sesión: " + (error.message || "Error desconocido"));
+            } finally {
+                // Rehabilitar botón después de un momento
+                setTimeout(() => {
+                    btnGoogleNew.disabled = false;
+                    btnGoogleNew.style.opacity = '1';
+                    btnGoogleNew.style.cursor = 'pointer';
+                }, 2000);
             }
+        };
+        
+        // Agregar listeners para móvil y escritorio
+        btnGoogleNew.addEventListener('click', handleGoogleLogin);
+        btnGoogleNew.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleGoogleLogin(e);
         });
+        
+        console.log("✅ Botón Google configurado correctamente");
+    } else {
+        console.error("❌ Botón btnGoogleLogin no encontrado en el DOM");
     }
 
     // MENÚ LATERAL Y LOGOUT
