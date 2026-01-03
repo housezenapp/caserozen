@@ -23,14 +23,35 @@ if (typeof supabase !== 'undefined') {
     console.error("❌ Error: La librería de Supabase no se ha cargado. Revisa tu index.html");
 }
 
+// Función de diagnóstico
+function diagnosticCheck() {
+    console.log("🔍 DIAGNÓSTICO INICIAL:");
+    console.log("  - Supabase inicializado:", !!window._supabase);
+    console.log("  - Supabase URL:", SUPABASE_URL);
+    console.log("  - currentUser:", window.currentUser ? window.currentUser.id : "NO HAY");
+    console.log("  - initAuth disponible:", typeof window.initAuth === 'function');
+    console.log("  - loadProperties disponible:", typeof window.loadProperties === 'function');
+    console.log("  - loadIncidents disponible:", typeof window.loadIncidents === 'function');
+    console.log("  - checkAndRefreshSession disponible:", typeof window.checkAndRefreshSession === 'function');
+    console.log("  - app-content visible:", !document.getElementById('app-content')?.classList.contains('hidden'));
+    console.log("  - login-page visible:", !document.getElementById('login-page')?.classList.contains('hidden'));
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("✨ CaseroZen: Iniciando aplicación...");
+
+    // Ejecutar diagnóstico
+    diagnosticCheck();
 
     // 2. INICIALIZACIÓN
     // Llamamos a las funciones que ya están en el objeto 'window' 
     // porque las cargamos en los otros archivos JS
     if (typeof window.initAuth === 'function') {
         await window.initAuth();
+        console.log("✅ initAuth completado");
+        diagnosticCheck(); // Diagnóstico después de auth
+    } else {
+        console.error("❌ initAuth no está disponible!");
     }
 
     if (typeof window.setupEventListeners === 'function') {

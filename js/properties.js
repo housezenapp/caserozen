@@ -38,17 +38,30 @@ async function loadProperties() {
 
         if (!window.currentUser) {
             clearTimeout(timeoutId);
+            console.error('❌ loadProperties: No hay currentUser');
             if (typeof window.forceLogout === 'function') {
                 await window.forceLogout();
             }
             return;
         }
 
+        // Verificar que Supabase esté inicializado
+        if (!window._supabase) {
+            clearTimeout(timeoutId);
+            console.error('❌ loadProperties: Supabase no está inicializado');
+            container.innerHTML = '<p class="error-msg">Error: La conexión a la base de datos no está disponible. Recarga la página.</p>';
+            return;
+        }
+
+        console.log('📡 loadProperties: Consultando propiedades para usuario:', window.currentUser.id);
+        
         const { data, error } = await window._supabase
             .from('propiedades')
             .select('*')
             .eq('perfil_id', window.currentUser.id)
             .order('created_at', { ascending: false });
+        
+        console.log('📡 loadProperties: Respuesta recibida. Datos:', data?.length || 0, 'Error:', error);
 
         clearTimeout(timeoutId); // Limpiar timeout si la carga fue exitosa
 

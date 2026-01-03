@@ -34,28 +34,47 @@ async function loadIncidents() {
 
         if (!window.currentUser) {
             clearTimeout(timeoutId);
+            console.error('❌ loadIncidents: No hay currentUser');
             if (typeof window.forceLogout === 'function') {
                 await window.forceLogout();
             }
             return;
         }
 
-    try {
+        // Verificar que Supabase esté inicializado
+        if (!window._supabase) {
+            clearTimeout(timeoutId);
+            console.error('❌ loadIncidents: Supabase no está inicializado');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                    <div class="empty-state-text">Error: La conexión a la base de datos no está disponible. Recarga la página.</div>
+                </div>
+            `;
+            return;
+        }
+
         let incidents = [];
 
         // Uso de variables globales del objeto window
         const _supabase = window._supabase;
         const currentUser = window.currentUser;
         const isAdmin = window.isAdmin;
+        
+        console.log('📡 loadIncidents: Consultando incidencias. Usuario:', currentUser.id, 'Admin:', isAdmin);
 
         if (isAdmin) {
+            console.log('📡 loadIncidents: Consultando todas las incidencias (admin)');
             const { data, error: adminError } = await _supabase
                 .from('incidencias')
                 .select('*')
                 .order('created_at', { ascending: false });
+            
+            console.log('📡 loadIncidents (admin): Respuesta recibida. Datos:', data?.length || 0, 'Error:', adminError);
 
             if (adminError) {
                 clearTimeout(timeoutId);
+                console.error('❌ loadIncidents: Error al consultar incidencias (admin):', adminError);
                 // Si el error es de autenticación, forzar cierre de sesión
                 if (adminError.message && (adminError.message.includes('JWT') || adminError.message.includes('session') || adminError.message.includes('auth') || adminError.message.includes('401') || adminError.message.includes('Unauthorized'))) {
                     console.error('❌ Error de autenticación:', adminError);
@@ -64,16 +83,26 @@ async function loadIncidents() {
                     }
                     return;
                 }
-                throw adminError;
+                // Mostrar error específico
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-exclamation-triangle"></i>
+                        <div class="empty-state-text">Error al cargar incidencias: ${adminError.message || 'Error desconocido'}</div>
+                    </div>
+                `;
+                return;
             }
 
             incidents = data || [];
         } else {
             // 1. Obtener los IDs de los inquilinos vinculados al casero actual
+            console.log('📡 loadIncidents: Consultando vinculaciones para casero:', currentUser.id);
             const { data: vinculaciones, error: vError } = await _supabase
                 .from('perfil_propiedades')
                 .select('id_perfil_inquilino')
                 .eq('id_perfil_casero', currentUser.id);
+            
+            console.log('📡 loadIncidents: Vinculaciones recibidas:', vinculaciones?.length || 0, 'Error:', vError);
 
             if (vError) {
                 clearTimeout(timeoutId);
@@ -85,7 +114,14 @@ async function loadIncidents() {
                     }
                     return;
                 }
-                throw vError;
+                // Mostrar error específico
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-exclamation-triangle"></i>
+                        <div class="empty-state-text">Error al cargar datos: ${vError.message || 'Error desconocido'}</div>
+                    </div>
+                `;
+                return;
             }
 
             // Verificación de seguridad: Si no hay inquilinos vinculados
@@ -103,16 +139,35 @@ async function loadIncidents() {
             }
 
             const inquilinoIds = vinculaciones.map(v => v.id_perfil_inquilino);
+            console.log('📡 loadIncidents: IDs de inquilinos:', inquilinoIds);
 
             // 2. Consulta incidencias buscando por el user_id del inquilino
+            if (inquilinoIds.length === 0) {
+                clearTimeout(timeoutId);
+                if (document.getElementById('stat-urgent')) document.getElementById('stat-urgent').textContent = '0';
+                if (document.getElementById('stat-pending')) document.getElementById('stat-pending').textContent = '0';
+                if (document.getElementById('stat-progress')) document.getElementById('stat-progress').textContent = '0';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-user-slash"></i>
+                        <div class="empty-state-text">No tienes inquilinos vinculados todavía</div>
+                    </div>
+                `;
+                return;
+            }
+
+            console.log('📡 loadIncidents: Consultando incidencias para inquilinos');
             const { data, error: iError } = await _supabase
                 .from('incidencias')
                 .select('*')
                 .in('user_id', inquilinoIds)
                 .order('created_at', { ascending: false });
+            
+            console.log('📡 loadIncidents: Incidencias recibidas:', data?.length || 0, 'Error:', iError);
 
             if (iError) {
                 clearTimeout(timeoutId);
+                console.error('❌ loadIncidents: Error al consultar incidencias:', iError);
                 // Si el error es de autenticación, forzar cierre de sesión
                 if (iError.message && (iError.message.includes('JWT') || iError.message.includes('session') || iError.message.includes('auth') || iError.message.includes('401') || iError.message.includes('Unauthorized'))) {
                     console.error('❌ Error de autenticación:', iError);
@@ -121,7 +176,14 @@ async function loadIncidents() {
                     }
                     return;
                 }
-                throw iError;
+                // Mostrar error específico
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-exclamation-triangle"></i>
+                        <div class="empty-state-text">Error al cargar incidencias: ${iError.message || 'Error desconocido'}</div>
+                    </div>
+                `;
+                return;
             }
 
             incidents = data || [];
@@ -173,11 +235,12 @@ async function loadIncidents() {
         }
 
         clearTimeout(timeoutId); // Limpiar timeout si la carga fue exitosa
+        console.log('✅ loadIncidents: Renderizando', filteredIncidents.length, 'incidencias');
         renderIncidentsList(filteredIncidents);
 
     } catch (error) {
         clearTimeout(timeoutId);
-        console.error('Error loading incidents:', error);
+        console.error('❌ loadIncidents: Error general:', error);
         
         // Verificar si es un error de autenticación
         const errorMessage = error?.message || error?.toString() || '';
