@@ -904,8 +904,35 @@ textarea {
     color: white;
 }
 
-.icon-btn.delete:hover {
-    background: var(--urgent);
+.delete-btn {
+    background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+    border: 2px solid #FCA5A5;
+    color: #DC2626;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);
+}
+
+.delete-btn:hover {
+    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+    border-color: #DC2626;
+    color: white;
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.delete-btn:active {
+    transform: translateY(0) scale(1);
+}
+
+.delete-btn i {
+    font-size: 0.9rem;
+    transition: var(--transition);
+}
+
+.delete-btn:hover i {
+    transform: rotate(10deg);
 }
 
 .property-info {

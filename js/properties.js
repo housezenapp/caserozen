@@ -65,7 +65,7 @@ function renderProperties(properties) {
                 </div>
             </div>
             <div class="property-actions">
-                <button class="btn-icon delete" onclick="deleteProperty('${prop.id}')" title="Eliminar propiedad">
+                <button class="icon-btn delete-btn" onclick="deleteProperty('${prop.id}')" title="Eliminar propiedad">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
