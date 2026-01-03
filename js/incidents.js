@@ -14,6 +14,30 @@ async function loadIncidents() {
         </div>
     `;
 
+    // Verificar sesión antes de cargar datos
+    if (typeof window.checkAndRefreshSession === 'function') {
+        const hasValidSession = await window.checkAndRefreshSession();
+        if (!hasValidSession) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                    <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
+                </div>
+            `;
+            return;
+        }
+    }
+
+    if (!window.currentUser) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fa-solid fa-exclamation-triangle"></i>
+                <div class="empty-state-text">Debes iniciar sesión para ver las incidencias.</div>
+            </div>
+        `;
+        return;
+    }
+
     try {
         let incidents = [];
 
@@ -23,10 +47,28 @@ async function loadIncidents() {
         const isAdmin = window.isAdmin;
 
         if (isAdmin) {
-            const { data } = await _supabase
+            const { data, error: adminError } = await _supabase
                 .from('incidencias')
                 .select('*')
                 .order('created_at', { ascending: false });
+
+            if (adminError) {
+                // Si el error es de autenticación, manejar apropiadamente
+                if (adminError.message && (adminError.message.includes('JWT') || adminError.message.includes('session') || adminError.message.includes('auth'))) {
+                    console.error('❌ Error de autenticación:', adminError);
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fa-solid fa-exclamation-triangle"></i>
+                            <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
+                        </div>
+                    `;
+                    if (typeof window.checkAndRefreshSession === 'function') {
+                        await window.checkAndRefreshSession();
+                    }
+                    return;
+                }
+                throw adminError;
+            }
 
             incidents = data || [];
         } else {
@@ -36,7 +78,23 @@ async function loadIncidents() {
                 .select('id_perfil_inquilino')
                 .eq('id_perfil_casero', currentUser.id);
 
-            if (vError) throw vError;
+            if (vError) {
+                // Si el error es de autenticación, manejar apropiadamente
+                if (vError.message && (vError.message.includes('JWT') || vError.message.includes('session') || vError.message.includes('auth'))) {
+                    console.error('❌ Error de autenticación:', vError);
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fa-solid fa-exclamation-triangle"></i>
+                            <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
+                        </div>
+                    `;
+                    if (typeof window.checkAndRefreshSession === 'function') {
+                        await window.checkAndRefreshSession();
+                    }
+                    return;
+                }
+                throw vError;
+            }
 
             // Verificación de seguridad: Si no hay inquilinos vinculados
             if (!vinculaciones || vinculaciones.length === 0) {
@@ -61,7 +119,23 @@ async function loadIncidents() {
                 .in('user_id', inquilinoIds)
                 .order('created_at', { ascending: false });
 
-            if (iError) throw iError;
+            if (iError) {
+                // Si el error es de autenticación, manejar apropiadamente
+                if (iError.message && (iError.message.includes('JWT') || iError.message.includes('session') || iError.message.includes('auth'))) {
+                    console.error('❌ Error de autenticación:', iError);
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fa-solid fa-exclamation-triangle"></i>
+                            <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
+                        </div>
+                    `;
+                    if (typeof window.checkAndRefreshSession === 'function') {
+                        await window.checkAndRefreshSession();
+                    }
+                    return;
+                }
+                throw iError;
+            }
 
             incidents = data || [];
         }
@@ -115,7 +189,34 @@ async function loadIncidents() {
 
     } catch (error) {
         console.error('Error loading incidents:', error);
-        if (typeof window.showToast === 'function') window.showToast('Error al cargar las incidencias');
+        
+        // Verificar si es un error de autenticación
+        const errorMessage = error?.message || error?.toString() || '';
+        const isAuthError = errorMessage.includes('JWT') || 
+                           errorMessage.includes('session') || 
+                           errorMessage.includes('auth') ||
+                           errorMessage.includes('401') ||
+                           errorMessage.includes('Unauthorized');
+        
+        if (isAuthError) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                    <div class="empty-state-text">Tu sesión ha expirado. Por favor, recarga la página.</div>
+                </div>
+            `;
+            if (typeof window.checkAndRefreshSession === 'function') {
+                await window.checkAndRefreshSession();
+            }
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-exclamation-triangle"></i>
+                    <div class="empty-state-text">Error al cargar las incidencias. Por favor, intenta de nuevo.</div>
+                </div>
+            `;
+            if (typeof window.showToast === 'function') window.showToast('Error al cargar las incidencias');
+        }
     }
 }
 

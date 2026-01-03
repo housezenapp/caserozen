@@ -18,6 +18,15 @@ async function loadProperties() {
 
     container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Cargando tus propiedades...</div>';
 
+    // Verificar sesión antes de cargar datos
+    if (typeof window.checkAndRefreshSession === 'function') {
+        const hasValidSession = await window.checkAndRefreshSession();
+        if (!hasValidSession) {
+            container.innerHTML = '<p class="error-msg">Tu sesión ha expirado. Por favor, recarga la página.</p>';
+            return;
+        }
+    }
+
     if (!window.currentUser) {
         container.innerHTML = '<p class="error-msg">Debes iniciar sesión para ver tus propiedades.</p>';
         return;
@@ -30,11 +39,28 @@ async function loadProperties() {
             .eq('perfil_id', window.currentUser.id)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            // Si el error es de autenticación, redirigir a login
+            if (error.message && (error.message.includes('JWT') || error.message.includes('session') || error.message.includes('auth'))) {
+                console.error('❌ Error de autenticación:', error);
+                container.innerHTML = '<p class="error-msg">Tu sesión ha expirado. Por favor, recarga la página.</p>';
+                // Si tenemos función para redirigir, la usamos
+                if (typeof window.checkAndRefreshSession === 'function') {
+                    await window.checkAndRefreshSession();
+                }
+                return;
+            }
+            throw error;
+        }
         renderProperties(data || []);
     } catch (error) {
         console.error('❌ Error al cargar propiedades:', error);
-        container.innerHTML = '<p class="error-msg">Error al conectar con la base de datos.</p>';
+        // Verificar si es un error de autenticación
+        if (error.message && (error.message.includes('JWT') || error.message.includes('session') || error.message.includes('auth'))) {
+            container.innerHTML = '<p class="error-msg">Tu sesión ha expirado. Por favor, recarga la página.</p>';
+        } else {
+            container.innerHTML = '<p class="error-msg">Error al conectar con la base de datos.</p>';
+        }
     }
 }
 

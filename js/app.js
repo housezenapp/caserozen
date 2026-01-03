@@ -37,5 +37,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.setupEventListeners();
     }
 
+    // Activar listener para detectar cuando la pestaña vuelve a estar activa
+    if (typeof window.setupVisibilityListener === 'function') {
+        window.setupVisibilityListener();
+    }
+
     console.log("✅ Aplicación inicializada correctamente");
 });
