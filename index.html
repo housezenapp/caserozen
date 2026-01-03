@@ -175,7 +175,18 @@
     <script src="js/incidents.js"></script>
     <script src="js/profile.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/diagnostic.js"></script>
     
     <script src="js/app.js"></script>
+    
+    <!-- Ejecutar diagnóstico automáticamente después de 3 segundos -->
+    <script>
+        setTimeout(() => {
+            if (typeof window.runDiagnostic === 'function') {
+                console.log("🔍 Ejecutando diagnóstico automático...");
+                window.runDiagnostic();
+            }
+        }, 3000);
+    </script>
 </body>
 </html>
