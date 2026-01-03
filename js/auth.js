@@ -269,50 +269,51 @@ async function checkAndRefreshSession() {
     }
 }
 
-// Listener para detectar cuando la pestaña vuelve a estar activa
+// Listener para detectar cuando la pestaña pierde el foco - CERRAR SESIÓN AUTOMÁTICAMENTE
 function setupVisibilityListener() {
+    let logoutTimeout = null;
+    
     document.addEventListener('visibilitychange', async () => {
-        if (!document.hidden) {
-            // La pestaña volvió a estar activa
-            console.log("👁️ Pestaña activa, verificando sesión...");
-            const hasValidSession = await checkAndRefreshSession();
+        if (document.hidden) {
+            // La pestaña perdió el foco - cerrar sesión después de 1 segundo
+            console.log("👋 Pestaña oculta, programando cierre de sesión...");
             
-            if (!hasValidSession) {
-                // forceLogout ya fue llamado por checkAndRefreshSession
-                return;
-            } else {
-                // Verificar si hay estados de "Cargando..." que no terminaron
-                const loadingElements = document.querySelectorAll('.loading-state');
-                if (loadingElements.length > 0) {
-                    // Si hay elementos de carga visibles después de mucho tiempo, recargar
-                    setTimeout(async () => {
-                        const stillLoading = document.querySelectorAll('.loading-state');
-                        if (stillLoading.length > 0 && document.contains(stillLoading[0])) {
-                            console.log("⚠️ Detectado estado de carga persistente, recargando datos...");
-                            const activePage = document.querySelector('.page.active');
-                            if (activePage) {
-                                const pageId = activePage.id;
-                                if (pageId === 'page-incidencias' && typeof window.loadIncidents === 'function') {
-                                    await window.loadIncidents();
-                                } else if (pageId === 'page-propiedades' && typeof window.loadProperties === 'function') {
-                                    await window.loadProperties();
-                                }
-                            }
-                        }
-                    }, 3000);
+            logoutTimeout = setTimeout(async () => {
+                console.log("🚪 Cerrando sesión automáticamente al salir de la pestaña");
+                if (typeof window.forceLogout === 'function') {
+                    await window.forceLogout();
+                } else if (typeof window.logout === 'function') {
+                    await window.logout();
                 }
-                
-                // Recargar datos si estamos en una página que los muestra
-                const activePage = document.querySelector('.page.active');
-                if (activePage) {
-                    const pageId = activePage.id;
-                    if (pageId === 'page-incidencias' && typeof window.loadIncidents === 'function') {
-                        window.loadIncidents();
-                    } else if (pageId === 'page-propiedades' && typeof window.loadProperties === 'function') {
-                        window.loadProperties();
-                    }
-                }
+            }, 1000); // 1 segundo después de perder el foco
+        } else {
+            // La pestaña volvió a estar activa - cancelar el timeout si existe
+            if (logoutTimeout) {
+                clearTimeout(logoutTimeout);
+                logoutTimeout = null;
+                console.log("✅ Pestaña activa, cancelando cierre de sesión");
             }
+        }
+    });
+    
+    // También escuchar cuando la ventana pierde el foco (cambio de aplicación)
+    window.addEventListener('blur', () => {
+        console.log("👋 Ventana perdió el foco, programando cierre de sesión...");
+        logoutTimeout = setTimeout(async () => {
+            console.log("🚪 Cerrando sesión automáticamente al cambiar de aplicación");
+            if (typeof window.forceLogout === 'function') {
+                await window.forceLogout();
+            } else if (typeof window.logout === 'function') {
+                await window.logout();
+            }
+        }, 1000);
+    });
+    
+    window.addEventListener('focus', () => {
+        if (logoutTimeout) {
+            clearTimeout(logoutTimeout);
+            logoutTimeout = null;
+            console.log("✅ Ventana recuperó el foco, cancelando cierre de sesión");
         }
     });
 }
