@@ -301,39 +301,18 @@ async function checkAndRefreshSession() {
 // Listener para refrescar la página al volver a la pestaña (mantener sesión activa)
 function setupVisibilityListener() {
     let wasHidden = false;
-    let hiddenTime = null;
 
     // Evento principal: cuando la pestaña se oculta/muestra
-    document.addEventListener('visibilitychange', async () => {
+    document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             // Pestaña oculta (cambio de pestaña o minimizar ventana)
             wasHidden = true;
-            hiddenTime = Date.now();
             console.log("👁️ Pestaña oculta - la sesión se mantiene activa");
         } else {
-            // Pestaña visible de nuevo
-            if (wasHidden && hiddenTime) {
-                const hiddenDuration = Date.now() - hiddenTime;
-                console.log(`👁️ Pestaña visible de nuevo - estuvo oculta ${Math.round(hiddenDuration / 1000)}s`);
-
-                // Si estuvo oculta más de 5 segundos, refrescar la página para asegurar conexión
-                if (hiddenDuration > 5000) {
-                    console.log("🔄 Refrescando página para asegurar conexión con Supabase...");
-                    location.reload();
-                } else {
-                    // Si fue un cambio rápido, solo verificar la sesión
-                    if (typeof window.checkAndRefreshSession === 'function') {
-                        const hasValidSession = await window.checkAndRefreshSession();
-                        if (!hasValidSession) {
-                            console.log("⚠️ Sesión no válida al volver");
-                        } else {
-                            console.log("✅ Sesión verificada correctamente");
-                        }
-                    }
-                }
-
-                wasHidden = false;
-                hiddenTime = null;
+            // Pestaña visible de nuevo - SIEMPRE refrescar para asegurar conexión con Supabase
+            if (wasHidden) {
+                console.log("🔄 Pestaña visible de nuevo - refrescando página para asegurar conexión con Supabase...");
+                location.reload();
             }
         }
     });

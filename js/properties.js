@@ -18,26 +18,16 @@ async function loadProperties() {
 
     container.innerHTML = '<div class="loading-state"><i class="fas fa-spinner fa-spin"></i> Cargando tus propiedades...</div>';
 
-    // Crear timeout de seguridad (10 segundos)
-    const timeoutId = setTimeout(async () => {
-        console.error('⏱️ Timeout al cargar propiedades después de 8 segundos - forzando cierre de sesión');
-        if (typeof window.forceLogout === 'function') {
-            await window.forceLogout();
-        }
-    }, 8000);
-
     try {
         // Verificar sesión antes de cargar datos
         if (typeof window.checkAndRefreshSession === 'function') {
             const hasValidSession = await window.checkAndRefreshSession();
             if (!hasValidSession) {
-                clearTimeout(timeoutId);
                 return; // forceLogout ya fue llamado por checkAndRefreshSession
             }
         }
 
         if (!window.currentUser) {
-            clearTimeout(timeoutId);
             console.error('❌ loadProperties: No hay currentUser');
             if (typeof window.forceLogout === 'function') {
                 await window.forceLogout();
@@ -47,23 +37,20 @@ async function loadProperties() {
 
         // Verificar que Supabase esté inicializado
         if (!window._supabase) {
-            clearTimeout(timeoutId);
             console.error('❌ loadProperties: Supabase no está inicializado');
             container.innerHTML = '<p class="error-msg">Error: La conexión a la base de datos no está disponible. Recarga la página.</p>';
             return;
         }
 
         console.log('📡 loadProperties: Consultando propiedades para usuario:', window.currentUser.id);
-        
+
         const { data, error } = await window._supabase
             .from('propiedades')
             .select('*')
             .eq('perfil_id', window.currentUser.id)
             .order('created_at', { ascending: false });
-        
-        console.log('📡 loadProperties: Respuesta recibida. Datos:', data?.length || 0, 'Error:', error);
 
-        clearTimeout(timeoutId); // Limpiar timeout si la carga fue exitosa
+        console.log('📡 loadProperties: Respuesta recibida. Datos:', data?.length || 0, 'Error:', error);
 
         if (error) {
             // Si el error es de autenticación, forzar cierre de sesión
@@ -78,7 +65,6 @@ async function loadProperties() {
         }
         renderProperties(data || []);
     } catch (error) {
-        clearTimeout(timeoutId);
         console.error('❌ Error al cargar propiedades:', error);
         // Verificar si es un error de autenticación
         if (error.message && (error.message.includes('JWT') || error.message.includes('session') || error.message.includes('auth') || error.message.includes('401') || error.message.includes('Unauthorized'))) {
