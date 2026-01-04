@@ -45,23 +45,23 @@ async function initAuth() {
 
     // 2. Verificación inmediata (por si ya hay una sesión activa al refrescar)
     const { data: { session }, error: sessionError } = await window._supabase.auth.getSession();
-    
+
     if (session && !sessionError) {
         console.log("🏠 Sesión previa recuperada");
-        
+
         // Verificar que la sesión sigue siendo válida
         const expiresAt = session.expires_at;
         const now = Math.floor(Date.now() / 1000);
         const timeUntilExpiry = expiresAt - now;
-        
+
         if (timeUntilExpiry < 60) { // Si expira en menos de 1 minuto, cerrar sesión
             console.log("⚠️ Sesión expirada, cerrando...");
             await forceLogout();
             return;
         }
-        
+
         window.currentUser = session.user;
-        await updateUserDisplay(session.user);
+        await updateUserDisplay(session.user); // Esto inicializa window.isAdmin
         
         // Cambiar de pantalla de Login a App si hay sesión
         const loginPage = document.getElementById('login-page');
@@ -159,7 +159,7 @@ async function createOrUpdateCaseroProfile(user) {
         // Verificamos si existe
         const { data: existing } = await window._supabase
             .from('perfiles')
-            .select('id')
+            .select('id, rol')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -169,14 +169,24 @@ async function createOrUpdateCaseroProfile(user) {
                 .update({ email: perfilData.email, nombre: perfilData.nombre, rol: perfilData.rol })
                 .eq('id', user.id);
             console.log("✅ Perfil sincronizado");
+
+            // Establecer isAdmin basado en el rol existente
+            window.isAdmin = existing.rol === 'admin';
         } else {
             await window._supabase
                 .from('perfiles')
                 .insert([perfilData]);
             console.log("✅ Perfil creado por primera vez");
+
+            // Por defecto, los nuevos usuarios no son admin
+            window.isAdmin = false;
         }
+
+        console.log("👤 Usuario es admin:", window.isAdmin);
     } catch (error) {
         console.error("❌ Error sincronizando perfil:", error);
+        // En caso de error, asumir que no es admin
+        window.isAdmin = false;
     }
 }
 

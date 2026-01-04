@@ -14,26 +14,16 @@ async function loadIncidents() {
         </div>
     `;
 
-    // Crear timeout de seguridad (10 segundos)
-    const timeoutId = setTimeout(async () => {
-        console.error('⏱️ Timeout al cargar incidencias después de 10 segundos - forzando cierre de sesión');
-        if (typeof window.forceLogout === 'function') {
-            await window.forceLogout();
-        }
-    }, 10000);
-
     try {
         // Verificar sesión antes de cargar datos
         if (typeof window.checkAndRefreshSession === 'function') {
             const hasValidSession = await window.checkAndRefreshSession();
             if (!hasValidSession) {
-                clearTimeout(timeoutId);
                 return; // forceLogout ya fue llamado por checkAndRefreshSession
             }
         }
 
         if (!window.currentUser) {
-            clearTimeout(timeoutId);
             console.error('❌ loadIncidents: No hay currentUser');
             if (typeof window.forceLogout === 'function') {
                 await window.forceLogout();
@@ -43,7 +33,6 @@ async function loadIncidents() {
 
         // Verificar que Supabase esté inicializado
         if (!window._supabase) {
-            clearTimeout(timeoutId);
             console.error('❌ loadIncidents: Supabase no está inicializado');
             container.innerHTML = `
                 <div class="empty-state">
@@ -69,11 +58,10 @@ async function loadIncidents() {
                 .from('incidencias')
                 .select('*')
                 .order('created_at', { ascending: false });
-            
+
             console.log('📡 loadIncidents (admin): Respuesta recibida. Datos:', data?.length || 0, 'Error:', adminError);
 
             if (adminError) {
-                clearTimeout(timeoutId);
                 console.error('❌ loadIncidents: Error al consultar incidencias (admin):', adminError);
                 // Si el error es de autenticación, forzar cierre de sesión
                 if (adminError.message && (adminError.message.includes('JWT') || adminError.message.includes('session') || adminError.message.includes('auth') || adminError.message.includes('401') || adminError.message.includes('Unauthorized'))) {
@@ -105,7 +93,6 @@ async function loadIncidents() {
             console.log('📡 loadIncidents: Vinculaciones recibidas:', vinculaciones?.length || 0, 'Error:', vError);
 
             if (vError) {
-                clearTimeout(timeoutId);
                 // Si el error es de autenticación, forzar cierre de sesión
                 if (vError.message && (vError.message.includes('JWT') || vError.message.includes('session') || vError.message.includes('auth') || vError.message.includes('401') || vError.message.includes('Unauthorized'))) {
                     console.error('❌ Error de autenticación:', vError);
@@ -143,7 +130,6 @@ async function loadIncidents() {
 
             // 2. Consulta incidencias buscando por el user_id del inquilino
             if (inquilinoIds.length === 0) {
-                clearTimeout(timeoutId);
                 if (document.getElementById('stat-urgent')) document.getElementById('stat-urgent').textContent = '0';
                 if (document.getElementById('stat-pending')) document.getElementById('stat-pending').textContent = '0';
                 if (document.getElementById('stat-progress')) document.getElementById('stat-progress').textContent = '0';
@@ -166,7 +152,6 @@ async function loadIncidents() {
             console.log('📡 loadIncidents: Incidencias recibidas:', data?.length || 0, 'Error:', iError);
 
             if (iError) {
-                clearTimeout(timeoutId);
                 console.error('❌ loadIncidents: Error al consultar incidencias:', iError);
                 // Si el error es de autenticación, forzar cierre de sesión
                 if (iError.message && (iError.message.includes('JWT') || iError.message.includes('session') || iError.message.includes('auth') || iError.message.includes('401') || iError.message.includes('Unauthorized'))) {
@@ -234,12 +219,10 @@ async function loadIncidents() {
             return;
         }
 
-        clearTimeout(timeoutId); // Limpiar timeout si la carga fue exitosa
         console.log('✅ loadIncidents: Renderizando', filteredIncidents.length, 'incidencias');
         renderIncidentsList(filteredIncidents);
 
     } catch (error) {
-        clearTimeout(timeoutId);
         console.error('❌ loadIncidents: Error general:', error);
         
         // Verificar si es un error de autenticación
