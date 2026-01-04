@@ -298,80 +298,47 @@ async function checkAndRefreshSession() {
     }
 }
 
-// Listener para detectar cuando la pestaña pierde el foco - CERRAR SESIÓN AUTOMÁTICAMENTE
+// Listener para refrescar la página al volver a la pestaña (mantener sesión activa)
 function setupVisibilityListener() {
-    let logoutTimeout = null;
-    let isLoggingOut = false;
-    
-    const triggerLogout = async () => {
-        if (isLoggingOut) return; // Evitar múltiples cierres simultáneos
-        isLoggingOut = true;
-        console.log("🚪 Cerrando sesión automáticamente...");
-        
-        if (typeof window.forceLogout === 'function') {
-            await window.forceLogout();
-        } else if (typeof window.logout === 'function') {
-            await window.logout();
-        }
-    };
-    
-    const scheduleLogout = (reason) => {
-        if (logoutTimeout) {
-            clearTimeout(logoutTimeout);
-        }
-        console.log(`👋 ${reason}, programando cierre de sesión en 1 segundo...`);
-        
-        logoutTimeout = setTimeout(() => {
-            triggerLogout();
-        }, 1000);
-    };
-    
-    const cancelLogout = () => {
-        if (logoutTimeout) {
-            clearTimeout(logoutTimeout);
-            logoutTimeout = null;
-            console.log("✅ Operación cancelada, no se cerrará sesión");
-        }
-    };
-    
+    let wasHidden = false;
+    let hiddenTime = null;
+
     // Evento principal: cuando la pestaña se oculta/muestra
-    document.addEventListener('visibilitychange', () => {
+    document.addEventListener('visibilitychange', async () => {
         if (document.hidden) {
             // Pestaña oculta (cambio de pestaña o minimizar ventana)
-            scheduleLogout("Pestaña oculta");
+            wasHidden = true;
+            hiddenTime = Date.now();
+            console.log("👁️ Pestaña oculta - la sesión se mantiene activa");
         } else {
             // Pestaña visible de nuevo
-            cancelLogout();
+            if (wasHidden && hiddenTime) {
+                const hiddenDuration = Date.now() - hiddenTime;
+                console.log(`👁️ Pestaña visible de nuevo - estuvo oculta ${Math.round(hiddenDuration / 1000)}s`);
+
+                // Si estuvo oculta más de 5 segundos, refrescar la página para asegurar conexión
+                if (hiddenDuration > 5000) {
+                    console.log("🔄 Refrescando página para asegurar conexión con Supabase...");
+                    location.reload();
+                } else {
+                    // Si fue un cambio rápido, solo verificar la sesión
+                    if (typeof window.checkAndRefreshSession === 'function') {
+                        const hasValidSession = await window.checkAndRefreshSession();
+                        if (!hasValidSession) {
+                            console.log("⚠️ Sesión no válida al volver");
+                        } else {
+                            console.log("✅ Sesión verificada correctamente");
+                        }
+                    }
+                }
+
+                wasHidden = false;
+                hiddenTime = null;
+            }
         }
     });
-    
-    // Para escritorio: cuando la ventana pierde/gana el foco
-    window.addEventListener('blur', () => {
-        // Solo activar si la pestaña también está oculta
-        // En escritorio, blur puede dispararse aunque la pestaña siga visible
-        if (document.hidden) {
-            scheduleLogout("Ventana perdió el foco");
-        }
-    });
-    
-    window.addEventListener('focus', () => {
-        cancelLogout();
-    });
-    
-    // Para móvil: cuando la app pasa a segundo plano
-    window.addEventListener('pagehide', () => {
-        scheduleLogout("Página oculta (móvil)");
-    });
-    
-    // Detectar cuando cambias de pestaña en el mismo navegador (especialmente en escritorio)
-    window.addEventListener('beforeunload', () => {
-        // Cancelar el timeout ya que la página se está recargando/navegando
-        if (logoutTimeout) {
-            clearTimeout(logoutTimeout);
-        }
-    });
-    
-    console.log("✅ Listener de visibilidad configurado para móvil y escritorio");
+
+    console.log("✅ Listener de visibilidad configurado - se refrescará la página al volver");
 }
 
 // Exponer funciones
