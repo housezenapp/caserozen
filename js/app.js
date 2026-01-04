@@ -63,7 +63,14 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 // Usamos la librería que ya debe estar cargada en el HTML
 if (typeof supabase !== 'undefined') {
-    window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true
+        }
+    });
+    console.log("✅ Supabase configurado con persistencia de sesión");
 } else {
     console.error("❌ Error: La librería de Supabase no se ha cargado. Revisa tu index.html");
 }

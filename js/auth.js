@@ -3,6 +3,8 @@
  * js/auth.js - Gestión de Autenticación Global
  */
 
+let authInitialized = false;
+
 async function initAuth() {
     console.log("🕵️ Vigilante de sesión activado...");
 
@@ -125,6 +127,8 @@ async function initAuth() {
             appContent.classList.add('hidden');
         }
     }
+
+    authInitialized = true;
 }
 
 // Actualiza el nombre del usuario en la interfaz
@@ -302,22 +306,22 @@ async function checkAndRefreshSession() {
 function setupVisibilityListener() {
     let wasHidden = false;
 
-    // Evento principal: cuando la pestaña se oculta/muestra
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            // Pestaña oculta (cambio de pestaña o minimizar ventana)
+    document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden && authInitialized && wasHidden) {
+            console.log("👁️ Pestaña visible de nuevo");
+
+            // IMPORTANTE: Recargar la página si estuvo oculta
+            // Esto reinicia el cliente de Supabase y evita problemas de bloqueo
+            console.log("🔄 Recargando página para reiniciar conexión...");
+            window.location.reload();
+
+        } else if (document.hidden) {
+            console.log("😴 Pestaña oculta");
             wasHidden = true;
-            console.log("👁️ Pestaña oculta - la sesión se mantiene activa");
-        } else {
-            // Pestaña visible de nuevo - SIEMPRE refrescar para asegurar conexión con Supabase
-            if (wasHidden) {
-                console.log("🔄 Pestaña visible de nuevo - refrescando página para asegurar conexión con Supabase...");
-                location.reload();
-            }
         }
     });
 
-    console.log("✅ Listener de visibilidad configurado - se refrescará la página al volver");
+    console.log("✅ Listener de visibilidad configurado");
 }
 
 // Exponer funciones
